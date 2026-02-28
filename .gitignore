@@ -1,0 +1,22 @@
+# Environments
+venv/
+env/
+.env
+
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Databases
+cityshakti.db
+*.sqlite3
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/

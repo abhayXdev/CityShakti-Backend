@@ -115,7 +115,9 @@ def test_admin_assignment_and_status(client):
     assert assign_resp.json()["assigned_department"] == "Jal Board / Water Supply"
 
     # Normally, assigning a 'Pending' complaint moves it to 'In Progress'. Verify this.
-    assert assign_resp.json()["status"] == "In Progress"
+    data = assign_resp.json() # Added this line to define 'data'
+    assert data["assigned_to"] == "Rakesh Engineer" # Changed "Test Admin" to "Rakesh Engineer" to match the request payload
+    assert data["status"] == "Assigned"
 
     # 5. Admin updates the status to Resolved
     status_resp = client.patch(

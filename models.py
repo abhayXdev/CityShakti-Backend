@@ -37,6 +37,7 @@ class Complaint(Base):
     )
     is_merged = Column(Boolean, default=False, index=True)
     category = Column(String, default="General", index=True)
+    photo_url = Column(String, nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     priority = Column(Integer, default=0)
@@ -44,9 +45,10 @@ class Complaint(Base):
     reports_count = Column(Integer, default=1)
     upvotes = Column(Integer, default=0)
     impact_score = Column(Float, default=0)
-    status = Column(String, default="Pending")
+    status = Column(String, default="Submitted")
     assigned_to = Column(String, nullable=True, index=True)
     assigned_department = Column(String, nullable=True, index=True)
+    assigned_at = Column(DateTime(timezone=True), nullable=True)
 
     # AI Metadata
     ai_confidence_score = Column(Float, nullable=True)

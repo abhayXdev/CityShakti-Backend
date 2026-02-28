@@ -220,6 +220,7 @@ def create_complaint(
         priority=payload.priority,
         priority_label="Pending Evaluation",
         citizen_id=current_user.id,
+        status="Submitted",
         expected_resolution_date=datetime.now(timezone.utc) + timedelta(days=30),
     )
     complaint.reports_count = 1
@@ -253,6 +254,8 @@ def list_complaints(
     priority: Optional[int] = Query(default=None, ge=0, le=5),
     assigned_to: Optional[str] = Query(default=None),
     include_merged: bool = Query(default=False),
+    limit: int = Query(default=50, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("citizen", "admin")),
 ):
@@ -272,7 +275,7 @@ def list_complaints(
     if assigned_to:
         query = query.filter(Complaint.assigned_to == assigned_to)
 
-    return query.order_by(Complaint.created_at.desc()).all()
+    return query.order_by(Complaint.created_at.desc()).offset(offset).limit(limit).all()
 
 
 @router.get("/{complaint_id}", response_model=ComplaintDetailOut)
@@ -355,8 +358,9 @@ def assign_complaint(
 
     complaint.assigned_to = payload.assigned_to
     complaint.assigned_department = payload.assigned_department
-    if complaint.status == "Pending":
-        complaint.status = "In Progress"
+    complaint.assigned_at = datetime.now(timezone.utc)
+    if complaint.status == "Submitted" or complaint.status == "Pending":
+        complaint.status = "Assigned"
 
     add_activity(
         db,

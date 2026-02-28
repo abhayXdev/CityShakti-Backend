@@ -48,6 +48,7 @@ class ComplaintCreate(BaseModel):
     description: str = Field(min_length=10, max_length=5000)
     ward: str = Field(min_length=2, max_length=100)
     category: str = Field(default="General", max_length=100)
+    photo_url: Optional[str] = Field(default=None, max_length=1000)
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     priority: int = Field(default=0, ge=0, le=5)
@@ -69,7 +70,7 @@ class ComplaintAssign(BaseModel):
 
 
 class ComplaintStatusUpdate(BaseModel):
-    status: Literal["Pending", "In Progress", "Resolved"]
+    status: Literal["Submitted", "Assigned", "In Progress", "Resolved", "Rejected"]
     note: Optional[str] = None
     actor: Optional[str] = None
 
@@ -120,6 +121,7 @@ class ComplaintOut(BaseModel):
     upvotes: int = 0
     impact_score: float
     status: str
+    photo_url: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     citizen_id: Optional[int]
@@ -127,6 +129,7 @@ class ComplaintOut(BaseModel):
     is_merged: bool
     assigned_to: Optional[str]
     assigned_department: Optional[str]
+    assigned_at: Optional[datetime] = None
     ai_confidence_score: Optional[float] = None
     ai_similarity_score: Optional[float] = None
     is_sla_breached: bool = False
@@ -163,5 +166,6 @@ class DashboardSummary(BaseModel):
     resolved_complaints: int
     high_priority_complaints: int
     avg_resolution_hours: Optional[float]
+    avg_assignment_to_resolution_hours: Optional[float] = None
     ward_stats: List[WardStat] = Field(default_factory=list)
     category_stats: List[CategoryStat] = Field(default_factory=list)

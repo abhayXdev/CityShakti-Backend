@@ -173,18 +173,30 @@ def predict_category(title: str, description: str) -> Tuple[str, float]:
     tokens = set(tokenize(merged))
 
     best_match = "General"
-    highest_intersect = 0
+    highest_score = 0.0
+
+    # Words that strongly indicate a specific category get a 2.0x multiplier
+    # Standard words get a 1.0x multiplier
+    STRONG_INDICATORS = {"pothole", "garbage", "water", "electricity", "police", "hospital"}
 
     for category, keywords in CATEGORY_KEYWORDS.items():
-        intersect = len(tokens & keywords)
-        if intersect > highest_intersect:
-            highest_intersect = intersect
+        score = 0.0
+        for token in (tokens & keywords):
+            score += 2.0 if token in STRONG_INDICATORS else 1.0
+            
+        if score > highest_score:
+            highest_score = score
             best_match = category
 
-    # Simple pseudo-confidence based on keyword match hits
+    # Calculate confidence based on score
     confidence = (
-        round(min(1.0, highest_intersect / 3.0), 2) if highest_intersect > 0 else 0.0
+        round(min(1.0, highest_score / 3.0), 2) if highest_score > 0 else 0.0
     )
+    
+    # Enforce minimum confidence threshold (0.40)
+    if confidence < 0.40:
+        return "General", confidence
+        
     return best_match, confidence
 
 

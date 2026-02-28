@@ -42,6 +42,9 @@ def dashboard_summary(
     )
     if resolved_rows:
         total_seconds = 0.0
+        total_assigned_seconds = 0.0
+        assigned_count = 0
+
         for row in resolved_rows:
             created = row.created_at
             resolved_at = row.resolved_at
@@ -50,9 +53,23 @@ def dashboard_summary(
             if resolved_at.tzinfo is None:
                 resolved_at = resolved_at.replace(tzinfo=timezone.utc)
             total_seconds += (resolved_at - created).total_seconds()
+
+            if row.assigned_at:
+                assigned = row.assigned_at
+                if assigned.tzinfo is None:
+                    assigned = assigned.replace(tzinfo=timezone.utc)
+                if resolved_at > assigned:
+                    total_assigned_seconds += (resolved_at - assigned).total_seconds()
+                    assigned_count += 1
+
         avg_hours = round((total_seconds / len(resolved_rows)) / 3600, 2)
+        avg_assignment_to_resolution_hours = (
+            round((total_assigned_seconds / assigned_count) / 3600, 2)
+            if assigned_count > 0 else None
+        )
     else:
         avg_hours = None
+        avg_assignment_to_resolution_hours = None
 
     ward_counters = defaultdict(lambda: {"total": 0, "resolved": 0, "pending": 0})
     all_open = db.query(Complaint).filter(Complaint.is_merged.is_(False)).all()
@@ -92,6 +109,7 @@ def dashboard_summary(
         resolved_complaints=resolved,
         high_priority_complaints=high_priority,
         avg_resolution_hours=avg_hours,
+        avg_assignment_to_resolution_hours=avg_assignment_to_resolution_hours,
         ward_stats=ward_stats,
         category_stats=category_stats,
     )

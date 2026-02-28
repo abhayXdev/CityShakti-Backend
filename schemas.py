@@ -151,6 +151,11 @@ class WardStat(BaseModel):
     pending: int
 
 
+class CategoryStat(BaseModel):
+    category: str
+    total: int
+
+
 class DashboardSummary(BaseModel):
     total_complaints: int
     pending_complaints: int
@@ -159,3 +164,4 @@ class DashboardSummary(BaseModel):
     high_priority_complaints: int
     avg_resolution_hours: Optional[float]
     ward_stats: List[WardStat] = Field(default_factory=list)
+    category_stats: List[CategoryStat] = Field(default_factory=list)

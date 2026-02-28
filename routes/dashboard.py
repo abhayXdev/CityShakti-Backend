@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from dependencies import require_role
 from models import Complaint, User
-from schemas import DashboardSummary, WardStat
+from schemas import CategoryStat, DashboardSummary, WardStat
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
@@ -74,6 +74,17 @@ def dashboard_summary(
         for ward, data in sorted(ward_counters.items(), key=lambda item: item[0])
     ]
 
+    category_counters = defaultdict(int)
+    for complaint in all_open:
+        category_counters[complaint.category] += 1
+
+    category_stats = [
+        {"category": cat, "total": count}
+        for cat, count in sorted(
+            category_counters.items(), key=lambda i: i[1], reverse=True
+        )
+    ]
+
     return DashboardSummary(
         total_complaints=total,
         pending_complaints=pending,
@@ -82,4 +93,5 @@ def dashboard_summary(
         high_priority_complaints=high_priority,
         avg_resolution_hours=avg_hours,
         ward_stats=ward_stats,
+        category_stats=category_stats,
     )

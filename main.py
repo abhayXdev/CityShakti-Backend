@@ -16,10 +16,16 @@ app = FastAPI(title="CityShakti PS-CRM")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Allow frontend applications (React, Flutter, etc.) to talk to this API
+import os
+
+# Secure CORS: Allow localhost by default, but pull Vercel/Prod URLs from .env
+CORS_ORIGINS = os.getenv(
+    "CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace "*" with your actual frontend URL
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

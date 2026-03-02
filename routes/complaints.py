@@ -333,9 +333,11 @@ def get_complaint(
         )
 
     if current_user.role == "citizen":
-        # A citizen can view if they own it, OR if it's a public complaint in their ward and not merged
+        # A citizen can view if they own it, OR if it's a public complaint in their ward
         if complaint.citizen_id != current_user.id:
-            if not current_user.ward or complaint.ward != current_user.ward or complaint.is_merged:
+            user_ward = (current_user.ward or "").strip().lower()
+            comp_ward = (complaint.ward or "").strip().lower()
+            if not user_ward or comp_ward != user_ward:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Not allowed to view this complaint",

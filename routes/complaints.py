@@ -264,11 +264,26 @@ def create_complaint(
         actor=current_user.full_name,
         actor_id=current_user.id,
     )
-    db.commit()
-
     background_tasks.add_task(run_auto_duplicate_detection, complaint.id)
     background_tasks.add_task(categorize_and_update, complaint.id)
     return complaint
+
+
+@router.get("/community", response_model=List[ComplaintOut])
+def list_community_complaints(
+    ward: str = Query(..., description="The ward to load community complaints for"),
+    limit: int = Query(default=50, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("citizen", "admin")),
+):
+    """
+    Returns public complaints for a specific ward.
+    Unlike the main list endpoint, this does NOT filter by the current citizen's ID,
+    allowing them to see and upvote other users' complaints in their community.
+    """
+    query = db.query(Complaint).filter(Complaint.is_merged.is_(False), Complaint.ward == ward)
+    return query.order_by(Complaint.created_at.desc()).offset(offset).limit(limit).all()
 
 
 @router.get("", response_model=List[ComplaintOut])

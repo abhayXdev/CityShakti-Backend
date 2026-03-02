@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal, get_db
 from dependencies import get_current_user, require_role
-from models import Complaint, ComplaintActivity, ComplaintUpdate, User
+from models import Complaint, ComplaintActivity, ComplaintUpdate, ComplaintUpvote, User
 from rate_limiter import limiter
 from schemas import (
     APIMessage,
@@ -282,6 +282,9 @@ def list_community_complaints(
     Unlike the main list endpoint, this does NOT filter by the current citizen's ID,
     allowing them to see and upvote other users' complaints in their community.
     """
+    if current_user.role == "citizen" and current_user.ward and current_user.ward != ward:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only view community issues in your own locality.")
+
     query = db.query(Complaint).filter(Complaint.is_merged.is_(False), Complaint.ward == ward)
     return query.order_by(Complaint.created_at.desc()).offset(offset).limit(limit).all()
 
@@ -526,21 +529,35 @@ def manual_merge_complaints(
 
 
 @router.post("/{complaint_id}/upvote", response_model=APIMessage)
-@limiter.limit("10/minute")
 def upvote_complaint(
-    request: Request,
     complaint_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("citizen", "admin")),
+    current_user: User = Depends(require_role("citizen")),
 ):
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
     if not complaint:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found"
         )
+    
+    if current_user.role == "citizen" and current_user.ward and current_user.ward != complaint.ward:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only upvote issues in your own locality.")
+
+    existing_vote = db.query(ComplaintUpvote).filter(
+        ComplaintUpvote.complaint_id == complaint_id,
+        ComplaintUpvote.user_id == current_user.id
+    ).first()
+
+    if existing_vote:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You have already upvoted this complaint.")
+
+    new_upvote = ComplaintUpvote(complaint_id=complaint_id, user_id=current_user.id)
+    db.add(new_upvote)
 
     complaint.upvotes += 1
-    complaint.impact_score += 0.5
+    complaint.impact_score = calculate_impact_score(
+        complaint.reports_count, complaint.priority, complaint.upvotes
+    )
 
     # Reward the citizen who reported it
     if complaint.citizen:

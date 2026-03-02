@@ -332,11 +332,14 @@ def get_complaint(
             status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found"
         )
 
-    if current_user.role == "citizen" and complaint.citizen_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not allowed to view this complaint",
-        )
+    if current_user.role == "citizen":
+        # A citizen can view if they own it, OR if it's a public complaint in their ward and not merged
+        if complaint.citizen_id != current_user.id:
+            if not current_user.ward or complaint.ward != current_user.ward or complaint.is_merged:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not allowed to view this complaint",
+                )
     return complaint
 
 

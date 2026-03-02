@@ -154,9 +154,9 @@ def get_admin_directory(
             "id": admin.id,
             "full_name": admin.full_name,
             "email": admin.email,
-            "department": admin.department or "General Administration",
+            "department": getattr(admin, "department", None) or "General Administration",
             "ward": admin.ward or "City-Wide",
-            "phone": admin.phone
+            "phone": getattr(admin, "phone", None)
         })
         
     return directory

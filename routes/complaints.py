@@ -33,6 +33,7 @@ from services.ai import (
     cosine_similarity,
     predict_category,
     predict_priority,
+    CATEGORY_TO_DEPARTMENT,
 )
 
 router = APIRouter(prefix="/api/complaints", tags=["Complaints"])
@@ -196,6 +197,29 @@ def categorize_and_update(complaint_id: int):
         complaint.impact_score = calculate_impact_score(
             complaint.reports_count, complaint.priority, complaint.upvotes
         )
+
+        # Auto-assignment logic based on predicted category
+        target_department = CATEGORY_TO_DEPARTMENT.get(
+            final_category, "General Administration"
+        )
+
+        # Only assign if it's new/submitted to prevent overriding manual assignments later
+        if complaint.status == "Submitted":
+            complaint.assigned_department = target_department
+            complaint.status = "Assigned"
+            complaint.assigned_at = datetime.now(timezone.utc)
+
+            add_activity(
+                db,
+                complaint_id=complaint.id,
+                action="Auto-Assigned",
+                details=f"System routed report to {target_department}",
+                previous_value="Submitted",
+                new_value="Assigned",
+                actor="system-ai",
+                actor_id=None,
+            )
+
         db.commit()
     finally:
         db.close()

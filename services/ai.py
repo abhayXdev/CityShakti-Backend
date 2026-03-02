@@ -99,6 +99,16 @@ CATEGORY_KEYWORDS = {
     },
 }
 
+CATEGORY_TO_DEPARTMENT = {
+    "Sanitation & SWM": "Department of Sanitation",
+    "Jal Board / Water Supply": "Water Authority",
+    "Electricity Board (DISCOM)": "Electricity Department",
+    "PWD & Roads": "Public Works Department",
+    "Police & Security": "City Police",
+    "Health & Public Welfare": "Health Department",
+    "General": "General Administration",
+}
+
 HIGH_URGENCY_KEYWORDS = {
     "fire",
     "flood",
@@ -177,26 +187,31 @@ def predict_category(title: str, description: str) -> Tuple[str, float]:
 
     # Words that strongly indicate a specific category get a 2.0x multiplier
     # Standard words get a 1.0x multiplier
-    STRONG_INDICATORS = {"pothole", "garbage", "water", "electricity", "police", "hospital"}
+    STRONG_INDICATORS = {
+        "pothole",
+        "garbage",
+        "water",
+        "electricity",
+        "police",
+        "hospital",
+    }
 
     for category, keywords in CATEGORY_KEYWORDS.items():
         score = 0.0
-        for token in (tokens & keywords):
+        for token in tokens & keywords:
             score += 2.0 if token in STRONG_INDICATORS else 1.0
-            
+
         if score > highest_score:
             highest_score = score
             best_match = category
 
     # Calculate confidence based on score
-    confidence = (
-        round(min(1.0, highest_score / 3.0), 2) if highest_score > 0 else 0.0
-    )
-    
+    confidence = round(min(1.0, highest_score / 3.0), 2) if highest_score > 0 else 0.0
+
     # Enforce minimum confidence threshold (0.40)
     if confidence < 0.40:
         return "General", confidence
-        
+
     return best_match, confidence
 
 

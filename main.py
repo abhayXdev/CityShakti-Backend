@@ -39,6 +39,7 @@ logging.basicConfig(level=logging.INFO)
 def health_check():
     return {"status": "ok", "version": "1.0.0"}
 
+
 @app.on_event("startup")
 def on_startup():
     # Remove auto-generation because Alembic handles database migrations now
@@ -50,7 +51,11 @@ async def sqlalchemy_exception_handler(_: Request, exc: SQLAlchemyError):
     logger.exception("Database error: %s", exc)
     return JSONResponse(
         status_code=500,
-        content={"success": False, "error": "Database operation failed", "code": "DB_ERROR"},
+        content={
+            "success": False,
+            "error": "Database operation failed",
+            "code": "DB_ERROR",
+        },
     )
 
 
@@ -72,7 +77,11 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled Exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"success": False, "error": "An unexpected server error occurred.", "code": "INTERNAL_ERROR"},
+        content={
+            "success": False,
+            "error": "An unexpected server error occurred.",
+            "code": "INTERNAL_ERROR",
+        },
     )
 
 

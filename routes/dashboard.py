@@ -65,7 +65,8 @@ def dashboard_summary(
         avg_hours = round((total_seconds / len(resolved_rows)) / 3600, 2)
         avg_assignment_to_resolution_hours = (
             round((total_assigned_seconds / assigned_count) / 3600, 2)
-            if assigned_count > 0 else None
+            if assigned_count > 0
+            else None
         )
     else:
         avg_hours = None

@@ -22,6 +22,29 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
         )
 
+    # Enforce Pincode uniqueness for Admins (1 per department per pincode)
+    if payload.role == "admin":
+        if not payload.ward:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="PIN Code is required for administrators"
+            )
+        if not payload.department:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Assigned Department is required for administrators"
+            )
+        
+        existing_admin = db.query(User).filter(
+            User.role == "admin",
+            User.ward == payload.ward,
+            User.department == payload.department
+        ).first()
+
+        if existing_admin:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, 
+                detail=f"An administrator for '{payload.department}' already exists in PIN code {payload.ward}."
+            )
+
     user = User(
         full_name=payload.full_name,
         email=payload.email.lower(),

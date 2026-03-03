@@ -13,7 +13,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     role: Literal["citizen", "admin"] = "citizen"
-    ward: Optional[str] = Field(default=None, max_length=100)
+    ward: Optional[str] = Field(default=None, pattern=r"^\d{6}$", description="6-digit Indian PIN code")
     department: Optional[str] = Field(default=None, max_length=100)
 
 
@@ -49,7 +49,7 @@ class UserOut(BaseModel):
 class ComplaintCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     description: str = Field(min_length=10, max_length=5000)
-    ward: str = Field(min_length=2, max_length=100)
+    ward: str = Field(pattern=r"^\d{6}$", description="6-digit Indian PIN code")
     category: str = Field(default="General", max_length=100)
     photo_url: Optional[str] = Field(default=None, max_length=1000)
     latitude: Optional[float] = None

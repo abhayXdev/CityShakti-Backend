@@ -44,6 +44,9 @@ def health_check():
 @app.on_event("startup")
 def on_startup():
     import subprocess
+    from security import hash_password
+    from database import SessionLocal
+    from models import User
 
     try:
         logger.info("Running Alembic Migrations...")
@@ -51,6 +54,27 @@ def on_startup():
         logger.info("Migrations completed successfully.")
     except Exception as e:
         logger.error(f"Failed to run migrations: {e}")
+
+    # Seed the Sudo Account
+    try:
+        db = SessionLocal()
+        sudo_email = "sudo@cityshakti.com"
+        existing_sudo = db.query(User).filter(User.email == sudo_email).first()
+        if not existing_sudo:
+            sudo_user = User(
+                full_name="Sudo User",
+                email=sudo_email,
+                password_hash=hash_password("adminpassword"),
+                role="sudo",
+                is_active=True
+            )
+            db.add(sudo_user)
+            db.commit()
+            logger.info("Successfully created pre-declared Sudo account: sudo@cityshakti.com")
+    except Exception as e:
+        logger.error(f"Failed to create Sudo user: {e}")
+    finally:
+        db.close()
 
 
 @app.exception_handler(SQLAlchemyError)

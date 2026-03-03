@@ -22,19 +22,19 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
         )
 
-    # Enforce Pincode uniqueness for Admins (1 per department per pincode)
-    if payload.role == "admin":
+    # Enforce Pincode uniqueness for Officers (1 per department per pincode)
+    if payload.role == "officer":
         if not payload.ward:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="PIN Code is required for administrators"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="PIN Code is required for officers"
             )
         if not payload.department:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Assigned Department is required for administrators"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Assigned Department is required for officers"
             )
         
         existing_admin = db.query(User).filter(
-            User.role == "admin",
+            User.role == "officer",
             User.ward == payload.ward,
             User.department == payload.department
         ).first()
@@ -42,7 +42,7 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
         if existing_admin:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, 
-                detail=f"An administrator for '{payload.department}' already exists in PIN code {payload.ward}."
+                detail=f"An officer for '{payload.department}' already exists in PIN code {payload.ward}."
             )
 
     user = User(
@@ -52,6 +52,7 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
         role=payload.role,
         ward=payload.ward,
         department=payload.department,
+        is_active=False if payload.role == "officer" else True,
     )
     db.add(user)
     db.commit()
@@ -69,6 +70,10 @@ def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
         )
 
     if not user.is_active:
+        if user.role == "officer":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Account pending Super Admin approval"
+            )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
         )

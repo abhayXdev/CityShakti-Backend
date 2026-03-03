@@ -12,7 +12,7 @@ class UserRegister(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
-    role: Literal["citizen", "admin"] = "citizen"
+    role: Literal["citizen", "officer", "sudo"] = "citizen"
     ward: Optional[str] = Field(default=None, pattern=r"^\d{6}$", description="6-digit Indian PIN code")
     department: Optional[str] = Field(default=None, max_length=100)
 
@@ -20,7 +20,7 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
-    role: Optional[Literal["citizen", "admin"]] = None
+    role: Optional[Literal["citizen", "officer", "sudo"]] = None
 
 
 class TokenResponse(BaseModel):
@@ -52,8 +52,8 @@ class ComplaintCreate(BaseModel):
     ward: str = Field(pattern=r"^\d{6}$", description="6-digit Indian PIN code")
     category: str = Field(default="General", max_length=100)
     photo_url: Optional[str] = Field(default=None, max_length=1000)
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+    latitude: float
+    longitude: float
     priority: int = Field(default=0, ge=0, le=5)
 
 

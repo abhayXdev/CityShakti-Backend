@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
+from typing import List
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -164,3 +165,76 @@ def get_admin_directory(
         )
 
     return directory
+
+def get_super_admin(current_user: User = Depends(require_role("sudo"))):
+    """Dependency to ensure the user is the Sudo user (role=='sudo')."""
+    return current_user
+
+@router.get("/pending-officers")
+def get_pending_officers(
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_super_admin)
+):
+    """Fetch all officers who are waiting for approval."""
+    # We serialize manually because User model isn't implicitly converted natively without UserOut schema
+    officers = db.query(User).filter(User.role == "officer", User.is_active.is_(False)).all()
+    return officers
+
+@router.post("/approve-officer/{user_id}")
+def approve_officer(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_super_admin)
+):
+    """Approve a pending officer, granting them login access."""
+    officer = db.query(User).filter(User.id == user_id, User.role == "officer").first()
+    
+    if not officer:
+        raise HTTPException(status_code=404, detail="Officer not found")
+        
+    if officer.is_active:
+        raise HTTPException(status_code=400, detail="Officer is already approved")
+        
+    officer.is_active = True
+    db.commit()
+    
+    # Simulate sending an approval email
+    print(f"\n[{'='*40}]")
+    print(f"📧 MOCK NOTIFICATION SYSTEM")
+    print(f"To: {officer.email}")
+    print(f"Subject: Application Approved - CityShakti Officer")
+    print(f"Body: Hello {officer.full_name}, your application to be the {officer.department} Officer for PIN {officer.ward} has been approved by the Sudo User.")
+    print(f"Link: You may now log in to the officer portal.")
+    print(f"[{'='*40}]\n")
+    
+    return {"message": "Officer successfully approved", "officer_email": officer.email}
+
+@router.delete("/reject-officer/{user_id}")
+def reject_officer(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_super_admin)
+):
+    """Reject a pending officer (deletes the pending account)."""
+    officer = db.query(User).filter(User.id == user_id, User.role == "officer", User.is_active == False).first()
+    if not officer:
+        raise HTTPException(status_code=404, detail="Pending Officer not found")
+        
+    db.delete(officer)
+    db.commit()
+    return {"message": "Pending officer request rejected and account deleted."}
+
+@router.delete("/delete-officer/{user_id}")
+def delete_officer(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_super_admin)
+):
+    """Delete an existing officer account."""
+    officer = db.query(User).filter(User.id == user_id, User.role == "officer").first()
+    if not officer:
+        raise HTTPException(status_code=404, detail="Officer not found")
+        
+    db.delete(officer)
+    db.commit()
+    return {"message": "Officer account deleted from the system."}

@@ -50,6 +50,13 @@ def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
         )
 
+    # Reject if the requested login role doesn't match the user's actual role
+    if payload.role and payload.role != user.role:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"This account is registered as '{user.role}'. Please use the correct login tab.",
+        )
+
     return TokenResponse(
         access_token=create_access_token(user.id, user.role),
         refresh_token=create_refresh_token(user.id, user.role),

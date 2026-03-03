@@ -20,6 +20,7 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    role: Optional[Literal["citizen", "admin"]] = None
 
 
 class TokenResponse(BaseModel):

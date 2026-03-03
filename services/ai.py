@@ -99,6 +99,7 @@ CATEGORY_KEYWORDS = {
 }
 
 CATEGORY_TO_DEPARTMENT = {
+    # Exact canonical names
     "Sanitation": "Sanitation",
     "Water Supply": "Water Supply",
     "Electricity": "Electricity",
@@ -106,6 +107,21 @@ CATEGORY_TO_DEPARTMENT = {
     "Parks & Recreation": "Parks & Recreation",
     "Public Health": "Public Health",
     "General": "General Administration",
+    # Common short-form / alias names
+    "Water": "Water Supply",
+    "water supply": "Water Supply",
+    "Roads": "Roads & Transport",
+    "Transport": "Roads & Transport",
+    "Roads and Transport": "Roads & Transport",
+    "Health": "Public Health",
+    "Parks": "Parks & Recreation",
+    "Recreation": "Parks & Recreation",
+    "Electric": "Electricity",
+    "Power": "Electricity",
+    "Sewage": "Water Supply",
+    "Drainage": "Water Supply",
+    "Garbage": "Sanitation",
+    "Waste": "Sanitation",
 }
 
 HIGH_URGENCY_KEYWORDS = {

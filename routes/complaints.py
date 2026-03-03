@@ -354,7 +354,8 @@ def admin_update_complaint(
             status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found"
         )
 
-    complaint_dept = complaint.assigned_department or complaint.category or "General"
+    raw_dept = complaint.assigned_department or complaint.category or "General"
+    complaint_dept = CATEGORY_TO_DEPARTMENT.get(raw_dept, raw_dept)
     if current_user.department and current_user.department != complaint_dept:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -440,7 +441,8 @@ def update_complaint_status(
             status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found"
         )
 
-    complaint_dept = complaint.assigned_department or complaint.category or "General"
+    raw_dept = complaint.assigned_department or complaint.category or "General"
+    complaint_dept = CATEGORY_TO_DEPARTMENT.get(raw_dept, raw_dept)
     if current_user.department and current_user.department != complaint_dept:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -485,7 +487,8 @@ def add_progress_update(
             status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found"
         )
 
-    complaint_dept = complaint.assigned_department or complaint.category or "General"
+    raw_dept = complaint.assigned_department or complaint.category or "General"
+    complaint_dept = CATEGORY_TO_DEPARTMENT.get(raw_dept, raw_dept)
     if current_user.department and current_user.department != complaint_dept:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

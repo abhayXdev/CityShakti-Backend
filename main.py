@@ -42,8 +42,13 @@ def health_check():
 
 @app.on_event("startup")
 def on_startup():
-    # Remove auto-generation because Alembic handles database migrations now
-    pass
+    import subprocess
+    try:
+        logger.info("Running Alembic Migrations...")
+        subprocess.run(["alembic", "upgrade", "head"], check=True)
+        logger.info("Migrations completed successfully.")
+    except Exception as e:
+        logger.error(f"Failed to run migrations: {e}")
 
 
 @app.exception_handler(SQLAlchemyError)

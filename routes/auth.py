@@ -69,6 +69,11 @@ def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
 
+    if getattr(user, "is_suspended", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="your account has been suspended"
+        )
+
     if not user.is_active:
         if user.role == "officer":
             raise HTTPException(

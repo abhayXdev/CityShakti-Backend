@@ -147,8 +147,8 @@ def get_admin_directory(
     Returns a public directory of all administrators for the 'Contact Us' page.
     Filters out sensitive information like passwords.
     """
-    # Find all users with the "admin" role
-    admins = db.query(User).filter(User.role == "admin").all()
+    # Find all active users with the "officer" role
+    admins = db.query(User).filter(User.role == "officer", User.is_active == True).all()
 
     directory = []
     for admin in admins:
@@ -161,6 +161,7 @@ def get_admin_directory(
                 or "General Administration",
                 "ward": admin.ward or "City-Wide",
                 "phone": getattr(admin, "phone", None),
+                "is_suspended": getattr(admin, "is_suspended", False),
             }
         )
 
@@ -238,3 +239,33 @@ def delete_officer(
     db.delete(officer)
     db.commit()
     return {"message": "Officer account deleted from the system."}
+
+@router.post("/suspend-officer/{user_id}")
+def suspend_officer(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_super_admin)
+):
+    """Suspend an existing officer account."""
+    officer = db.query(User).filter(User.id == user_id, User.role == "officer").first()
+    if not officer:
+        raise HTTPException(status_code=404, detail="Officer not found")
+        
+    officer.is_suspended = True
+    db.commit()
+    return {"message": "Officer account suspended."}
+
+@router.post("/unsuspend-officer/{user_id}")
+def unsuspend_officer(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_super_admin)
+):
+    """Unsuspend an existing officer account."""
+    officer = db.query(User).filter(User.id == user_id, User.role == "officer").first()
+    if not officer:
+        raise HTTPException(status_code=404, detail="Officer not found")
+        
+    officer.is_suspended = False
+    db.commit()
+    return {"message": "Officer account unsuspended."}

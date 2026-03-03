@@ -18,6 +18,7 @@ class User(Base):
     department = Column(String, nullable=True, index=True)
     points = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    is_suspended = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     complaints = relationship(

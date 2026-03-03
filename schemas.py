@@ -84,7 +84,7 @@ class ComplaintMergeRequest(BaseModel):
 
 
 class ComplaintProgressUpdateCreate(BaseModel):
-    phase: Literal["before", "after"] = "after"
+    phase: Literal["update", "before", "after"] = "update"
     note: Optional[str] = Field(default=None, max_length=2000)
     photo_url: Optional[str] = Field(default=None, max_length=1000)
 

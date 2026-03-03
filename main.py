@@ -26,6 +26,7 @@ CORS_ORIGINS = os.getenv(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
+    allow_origin_regex=r"https?://(?:localhost|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|127\.0\.0\.1)(?::\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,6 +44,7 @@ def health_check():
 @app.on_event("startup")
 def on_startup():
     import subprocess
+
     try:
         logger.info("Running Alembic Migrations...")
         subprocess.run(["alembic", "upgrade", "head"], check=True)

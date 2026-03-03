@@ -36,7 +36,7 @@ STOP_WORDS = {
 }
 
 CATEGORY_KEYWORDS = {
-    "Sanitation & SWM": {
+    "Sanitation": {
         "garbage",
         "trash",
         "waste",
@@ -48,7 +48,7 @@ CATEGORY_KEYWORDS = {
         "kachra",
         "dustbin",
     },
-    "Jal Board / Water Supply": {
+    "Water Supply": {
         "water",
         "leak",
         "pipe",
@@ -59,7 +59,7 @@ CATEGORY_KEYWORDS = {
         "pani",
         "tap",
     },
-    "Electricity Board (DISCOM)": {
+    "Electricity": {
         "light",
         "pole",
         "wire",
@@ -69,7 +69,7 @@ CATEGORY_KEYWORDS = {
         "street lamp",
         "bijli",
     },
-    "PWD & Roads": {
+    "Roads & Transport": {
         "road",
         "pothole",
         "broken",
@@ -79,16 +79,15 @@ CATEGORY_KEYWORDS = {
         "damage",
         "sadak",
     },
-    "Police & Security": {
-        "crime",
-        "police",
-        "robbery",
-        "accident",
-        "unsafe",
-        "dark",
-        "theft",
+    "Parks & Recreation": {
+        "park",
+        "bench",
+        "playground",
+        "tree",
+        "grass",
+        "garden",
     },
-    "Health & Public Welfare": {
+    "Public Health": {
         "hospital",
         "ambulance",
         "disease",
@@ -100,12 +99,12 @@ CATEGORY_KEYWORDS = {
 }
 
 CATEGORY_TO_DEPARTMENT = {
-    "Sanitation & SWM": "Department of Sanitation",
-    "Jal Board / Water Supply": "Water Authority",
-    "Electricity Board (DISCOM)": "Electricity Department",
-    "PWD & Roads": "Public Works Department",
-    "Police & Security": "City Police",
-    "Health & Public Welfare": "Health Department",
+    "Sanitation": "Sanitation",
+    "Water Supply": "Water Supply",
+    "Electricity": "Electricity",
+    "Roads & Transport": "Roads & Transport",
+    "Parks & Recreation": "Parks & Recreation",
+    "Public Health": "Public Health",
     "General": "General Administration",
 }
 

@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import (Boolean, Column, DateTime, Float, ForeignKey, Integer,
+                        String)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -117,6 +118,8 @@ class ComplaintUpvote(Base):
     __tablename__ = "complaint_upvotes"
 
     id = Column(Integer, primary_key=True, index=True)
-    complaint_id = Column(Integer, ForeignKey("complaints.id"), index=True, nullable=False)
+    complaint_id = Column(
+        Integer, ForeignKey("complaints.id"), index=True, nullable=False
+    )
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

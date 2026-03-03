@@ -139,7 +139,8 @@ def get_admin_performance_metrics(
 
 @router.get("/directory")
 def get_admin_directory(
-    db: Session = Depends(get_db), current_user: User = Depends(require_role("citizen", "admin"))
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("citizen", "admin")),
 ):
     """
     Returns a public directory of all administrators for the 'Contact Us' page.
@@ -147,16 +148,19 @@ def get_admin_directory(
     """
     # Find all users with the "admin" role
     admins = db.query(User).filter(User.role == "admin").all()
-    
+
     directory = []
     for admin in admins:
-        directory.append({
-            "id": admin.id,
-            "full_name": admin.full_name,
-            "email": admin.email,
-            "department": getattr(admin, "department", None) or "General Administration",
-            "ward": admin.ward or "City-Wide",
-            "phone": getattr(admin, "phone", None)
-        })
-        
+        directory.append(
+            {
+                "id": admin.id,
+                "full_name": admin.full_name,
+                "email": admin.email,
+                "department": getattr(admin, "department", None)
+                or "General Administration",
+                "ward": admin.ward or "City-Wide",
+                "phone": getattr(admin, "phone", None),
+            }
+        )
+
     return directory

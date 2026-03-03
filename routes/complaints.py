@@ -1,40 +1,23 @@
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Depends,
-    HTTPException,
-    Query,
-    Request,
-    status,
-)
+from fastapi import (APIRouter, BackgroundTasks, Depends, HTTPException, Query,
+                     Request, status)
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, get_db
 from dependencies import get_current_user, require_role
-from models import Complaint, ComplaintActivity, ComplaintUpdate, ComplaintUpvote, User
+from models import (Complaint, ComplaintActivity, ComplaintUpdate,
+                    ComplaintUpvote, User)
 from rate_limiter import limiter
-from schemas import (
-    APIMessage,
-    ComplaintAdminUpdate,
-    ComplaintAssign,
-    ComplaintCreate,
-    ComplaintDetailOut,
-    ComplaintMergeRequest,
-    ComplaintOut,
-    ComplaintProgressUpdateCreate,
-    ComplaintProgressUpdateOut,
-    ComplaintStatusUpdate,
-)
-from services.ai import (
-    calculate_impact_score,
-    cosine_similarity,
-    predict_category,
-    predict_priority,
-    CATEGORY_TO_DEPARTMENT,
-)
+from schemas import (APIMessage, ComplaintAdminUpdate, ComplaintAssign,
+                     ComplaintCreate, ComplaintDetailOut,
+                     ComplaintMergeRequest, ComplaintOut,
+                     ComplaintProgressUpdateCreate, ComplaintProgressUpdateOut,
+                     ComplaintStatusUpdate)
+from services.ai import (CATEGORY_TO_DEPARTMENT, calculate_impact_score,
+                         cosine_similarity, predict_category, predict_priority)
 
 router = APIRouter(prefix="/api/complaints", tags=["Complaints"])
 RESOLVED_STATUS = "Resolved"
@@ -134,7 +117,11 @@ def run_auto_duplicate_detection(complaint_id: int):
             db.query(Complaint)
             .filter(
                 Complaint.id != complaint.id,
-                Complaint.ward == complaint.ward,
+                (
+                    func.lower(Complaint.ward) == func.lower(complaint.ward)
+                    if complaint.ward
+                    else False
+                ),
                 Complaint.is_merged.is_(False),
             )
             .all()
@@ -241,6 +228,7 @@ def create_complaint(
         category=payload.category,
         latitude=payload.latitude,
         longitude=payload.longitude,
+        photo_url=payload.photo_url,
         priority=payload.priority,
         priority_label="Pending Evaluation",
         citizen_id=current_user.id,
@@ -282,10 +270,18 @@ def list_community_complaints(
     Unlike the main list endpoint, this does NOT filter by the current citizen's ID,
     allowing them to see and upvote other users' complaints in their community.
     """
-    if current_user.role == "citizen" and current_user.ward and current_user.ward != ward:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only view community issues in your own locality.")
+    user_ward = (current_user.ward or "").strip().lower()
+    query_ward = (ward or "").strip().lower()
 
-    query = db.query(Complaint).filter(Complaint.is_merged.is_(False), Complaint.ward == ward)
+    if current_user.role == "citizen" and user_ward and user_ward != query_ward:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view community issues in your own locality.",
+        )
+
+    query = db.query(Complaint).filter(
+        Complaint.is_merged.is_(False), func.lower(Complaint.ward) == query_ward
+    )
     return query.order_by(Complaint.created_at.desc()).offset(offset).limit(limit).all()
 
 
@@ -311,7 +307,7 @@ def list_complaints(
     if status:
         query = query.filter(Complaint.status == status)
     if ward:
-        query = query.filter(Complaint.ward == ward)
+        query = query.filter(func.lower(Complaint.ward) == ward.lower())
     if priority is not None:
         query = query.filter(Complaint.priority == priority)
     if assigned_to:
@@ -356,6 +352,13 @@ def admin_update_complaint(
     if not complaint:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found"
+        )
+
+    complaint_dept = complaint.assigned_department or complaint.category or "General"
+    if current_user.department and current_user.department != complaint_dept:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage complaints assigned to your department",
         )
 
     if payload.title is not None:
@@ -437,6 +440,13 @@ def update_complaint_status(
             status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found"
         )
 
+    complaint_dept = complaint.assigned_department or complaint.category or "General"
+    if current_user.department and current_user.department != complaint_dept:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage complaints assigned to your department",
+        )
+
     old_status = complaint.status
     complaint.status = payload.status
     complaint.resolved_at = (
@@ -473,6 +483,13 @@ def add_progress_update(
     if not complaint:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found"
+        )
+
+    complaint_dept = complaint.assigned_department or complaint.category or "General"
+    if current_user.department and current_user.department != complaint_dept:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage complaints assigned to your department",
         )
 
     progress = ComplaintUpdate(
@@ -514,7 +531,10 @@ def manual_merge_complaints(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Source or target complaint not found",
         )
-    if source.ward != target.ward:
+
+    source_ward = (source.ward or "").strip().lower()
+    target_ward = (target.ward or "").strip().lower()
+    if source_ward != target_ward:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Complaints must be in same ward to merge",
@@ -544,17 +564,29 @@ def upvote_complaint(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found"
         )
-    
-    if current_user.role == "citizen" and current_user.ward and current_user.ward != complaint.ward:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only upvote issues in your own locality.")
 
-    existing_vote = db.query(ComplaintUpvote).filter(
-        ComplaintUpvote.complaint_id == complaint_id,
-        ComplaintUpvote.user_id == current_user.id
-    ).first()
+    user_ward = (current_user.ward or "").strip().lower()
+    comp_ward = (complaint.ward or "").strip().lower()
+    if current_user.role == "citizen" and user_ward and user_ward != comp_ward:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only upvote issues in your own locality.",
+        )
+
+    existing_vote = (
+        db.query(ComplaintUpvote)
+        .filter(
+            ComplaintUpvote.complaint_id == complaint_id,
+            ComplaintUpvote.user_id == current_user.id,
+        )
+        .first()
+    )
 
     if existing_vote:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You have already upvoted this complaint.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already upvoted this complaint.",
+        )
 
     new_upvote = ComplaintUpvote(complaint_id=complaint_id, user_id=current_user.id)
     db.add(new_upvote)

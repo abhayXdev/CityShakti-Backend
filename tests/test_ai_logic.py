@@ -1,4 +1,4 @@
-from services.ai import predict_priority, predict_category, cosine_similarity
+from services.ai import cosine_similarity, predict_category, predict_priority
 
 
 def test_predict_priority():

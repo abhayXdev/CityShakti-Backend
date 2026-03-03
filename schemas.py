@@ -14,6 +14,7 @@ class UserRegister(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     role: Literal["citizen", "admin"] = "citizen"
     ward: Optional[str] = Field(default=None, max_length=100)
+    department: Optional[str] = Field(default=None, max_length=100)
 
 
 class UserLogin(BaseModel):
@@ -37,6 +38,7 @@ class UserOut(BaseModel):
     email: EmailStr
     role: str
     ward: Optional[str]
+    department: Optional[str] = None
     points: int = 0
     is_active: bool
 

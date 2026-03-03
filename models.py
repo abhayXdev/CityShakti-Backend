@@ -14,6 +14,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="citizen", index=True)
     ward = Column(String, nullable=True, index=True)
+    department = Column(String, nullable=True, index=True)
     points = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

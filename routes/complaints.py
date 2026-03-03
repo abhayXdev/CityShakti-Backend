@@ -219,7 +219,7 @@ def create_complaint(
     payload: ComplaintCreate,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("citizen", "admin")),
+    current_user: User = Depends(require_role("citizen", "officer", "sudo")),
 ):
     complaint = Complaint(
         title=payload.title,
@@ -263,7 +263,7 @@ def list_community_complaints(
     limit: int = Query(default=50, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("citizen", "admin")),
+    current_user: User = Depends(require_role("citizen", "officer", "sudo")),
 ):
     """
     Returns public complaints for a specific ward.
@@ -295,7 +295,7 @@ def list_complaints(
     limit: int = Query(default=50, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("citizen", "admin")),
+    current_user: User = Depends(require_role("citizen", "officer", "sudo")),
 ):
     query = db.query(Complaint)
 
@@ -320,7 +320,7 @@ def list_complaints(
 def get_complaint(
     complaint_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("citizen", "admin")),
+    current_user: User = Depends(require_role("citizen", "officer", "sudo")),
 ):
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
     if not complaint:
@@ -346,7 +346,7 @@ def admin_update_complaint(
     complaint_id: int,
     payload: ComplaintAdminUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("officer", "sudo")),
 ):
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
     if not complaint:
@@ -397,7 +397,7 @@ def assign_complaint(
     complaint_id: int,
     payload: ComplaintAssign,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("officer", "sudo")),
 ):
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
     if not complaint:
@@ -433,7 +433,7 @@ def update_complaint_status(
     complaint_id: int,
     payload: ComplaintStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("officer", "sudo")),
 ):
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
     if not complaint:
@@ -479,7 +479,7 @@ def add_progress_update(
     complaint_id: int,
     payload: ComplaintProgressUpdateCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("officer", "sudo")),
 ):
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
     if not complaint:
@@ -521,7 +521,7 @@ def add_progress_update(
 def manual_merge_complaints(
     payload: ComplaintMergeRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("officer", "sudo")),
 ):
     source = (
         db.query(Complaint).filter(Complaint.id == payload.source_complaint_id).first()

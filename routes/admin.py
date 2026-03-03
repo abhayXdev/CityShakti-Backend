@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
 @router.post("/scan-slas", response_model=APIMessage)
 def scan_and_escalate_slas(
-    db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))
+    db: Session = Depends(get_db), current_user: User = Depends(require_role("officer", "sudo"))
 ):
     """
     Scans for all Pending or In Progress complaints that have passed their expected
@@ -65,7 +65,7 @@ def scan_and_escalate_slas(
 
 @router.get("/analytics")
 def get_admin_performance_metrics(
-    db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))
+    db: Session = Depends(get_db), current_user: User = Depends(require_role("officer", "sudo"))
 ):
     """
     Returns performance metrics per admin (e.g. complaints resolved by admin, average SLA compliance)
@@ -141,7 +141,7 @@ def get_admin_performance_metrics(
 @router.get("/directory")
 def get_admin_directory(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("citizen", "admin")),
+    current_user: User = Depends(require_role("citizen", "officer", "sudo")),
 ):
     """
     Returns a public directory of all administrators for the 'Contact Us' page.

@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 @router.get("/summary", response_model=DashboardSummary)
 def dashboard_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("officer", "sudo")),
 ):
     total = db.query(Complaint).count()
     pending = (

@@ -567,6 +567,16 @@ def manual_merge_complaints(
     )
 
 
+@router.get("/user/upvotes", response_model=List[int])
+def get_user_upvotes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("citizen")),
+):
+    """Returns a list of complaint IDs that the current citizen has uniquely upvoted."""
+    votes = db.query(ComplaintUpvote.complaint_id).filter(ComplaintUpvote.user_id == current_user.id).all()
+    return [vote[0] for vote in votes]
+
+
 @router.post("/{complaint_id}/upvote", response_model=APIMessage)
 def upvote_complaint(
     complaint_id: int,
@@ -606,6 +616,20 @@ def upvote_complaint(
     db.add(new_upvote)
 
     complaint.upvotes += 1
+    
+    # Mathematical Priority Escalation
+    # Baseline priority is derived from the original text (AI or manual override)
+    baseline_priority, _ = predict_priority(complaint.title, complaint.description)
+    # Give +1 bonus priority level for every 10 upvotes, capped at 5
+    bonus_levels = complaint.upvotes // 10
+    new_priority = min(5, baseline_priority + bonus_levels)
+    
+    complaint.priority = new_priority
+    
+    # Generate the string label based on the new integer
+    labels = {0: "Low", 1: "Medium", 2: "High", 3: "Urgent", 4: "Critical", 5: "Emergency"}
+    complaint.priority_label = labels.get(new_priority, "Medium")
+
     complaint.impact_score = calculate_impact_score(
         complaint.reports_count, complaint.priority, complaint.upvotes
     )

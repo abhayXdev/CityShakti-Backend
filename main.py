@@ -38,7 +38,7 @@ logging.basicConfig(level=logging.INFO)
 
 @app.get("/api/health", tags=["System"])
 def health_check():
-    return {"status": "ok", "version": "1.0.1"}
+    return {"status": "ok", "version": "1.0.2"}
 
 
 @app.on_event("startup")

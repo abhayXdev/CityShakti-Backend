@@ -96,8 +96,9 @@ def send_otp_email(to_email: str, otp_code: str):
 
     try:
         context = ssl.create_default_context()
-        # Add 15 second timeout to avoid hanging on Render
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=15) as server:
+        # Use port 587 with STARTTLS for better compatibility on Render
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+            server.starttls(context=context)
             server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
             server.sendmail(GMAIL_USER, to_email, msg.as_string())
         logger.info(f"OTP email sent to {to_email}")

@@ -114,17 +114,17 @@ How the backend calculates deadlines, and how officers communicate updates to th
 ```mermaid
 flowchart TD
     A[Citizen Submits Issue] --> B{AI SLA Router}
-    B -->|Urgent (e.g., Water Pipe)| C[SLA = 24 Hours]
-    B -->|Medium (e.g., Pothole)| D[SLA = 3 Days]
-    B -->|Low (e.g., Park Cleanup)| E[SLA = 7 Days]
+    B -->|Urgent: Water Pipe| C[SLA = 24 Hours]
+    B -->|Medium: Pothole| D[SLA = 3 Days]
+    B -->|Low: Park Cleanup| E[SLA = 7 Days]
     
     C --> F[Officer Dashboard]
     D --> F
     E --> F
     
     F --> G[Officer Begins Work]
-    G --> H[Uploads "Before" Photo Update]
-    H --> I[Uploads "After" Photo Update]
+    G --> H[Uploads Before Photo Update]
+    H --> I[Uploads After Photo Update]
     I --> J[Officer Marks Resolved]
     J --> K[Wait for Citizen Verification]
 ```

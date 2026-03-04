@@ -38,26 +38,7 @@ logging.basicConfig(level=logging.INFO)
 
 @app.get("/api/health", tags=["System"])
 def health_check():
-    return {"status": "ok", "version": "1.0.5"}
-
-@app.get("/api/test-network", tags=["System"])
-def test_network():
-    import urllib.request
-    import socket
-    results = {}
-    try:
-        with urllib.request.urlopen("https://www.google.com", timeout=5) as r:
-            results["https"] = "success"
-    except Exception as e:
-        results["https"] = str(e)
-    
-    try:
-        ip = socket.gethostbyname("smtp.gmail.com")
-        results["dns_smtp"] = f"Success: {ip}"
-    except Exception as e:
-        results["dns_smtp"] = str(e)
-        
-    return results
+    return {"status": "ok", "version": "1.0.0"}
 
 
 @app.on_event("startup")
@@ -105,7 +86,6 @@ async def sqlalchemy_exception_handler(_: Request, exc: SQLAlchemyError):
             "success": False,
             "error": "Database operation failed",
             "code": "DB_ERROR",
-            "details": str(exc)
         },
     )
 
@@ -132,7 +112,6 @@ async def global_exception_handler(request: Request, exc: Exception):
             "success": False,
             "error": "An unexpected server error occurred.",
             "code": "INTERNAL_ERROR",
-            "details": str(exc)
         },
     )
 

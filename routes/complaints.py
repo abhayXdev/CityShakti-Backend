@@ -266,8 +266,15 @@ def create_complaint(
     
     # Send Automated Notifications
     if current_user.phone:
-        send_sms(current_user.phone, f"CityShakti: Your complaint '{complaint.title}' has been registered successfully.")
-    send_email(current_user.email, "Complaint Registered", f"Hello {current_user.full_name},\n\nYour complaint '{complaint.title}' has been successfully logged and is currently Pending Evaluation.\nYou will receive further updates as it progresses.")
+        send_sms(current_user.phone, "", event="registered", title=complaint.title)
+    send_email(
+        current_user.email,
+        "✅ Complaint Registered — JanSetu",
+        "",
+        event="registered",
+        title=complaint.title,
+        citizen_name=current_user.full_name,
+    )
 
     background_tasks.add_task(run_auto_duplicate_detection, complaint.id)
     background_tasks.add_task(categorize_and_update, complaint.id)
@@ -495,10 +502,29 @@ def update_complaint_status(
     
     citizen = complaint.citizen
     if citizen:
-        msg = f"CityShakti: Your complaint '{complaint.title}' status has been updated to {payload.status}."
+        # Map API status string to event key
+        event_map = {
+            "In Progress": "in_progress",
+            "Assigned": "assigned",
+            "Resolved": "resolved",
+            "Closed": "closed",
+            "Rejected": "rejected",
+        }
+        evt = event_map.get(payload.status, "generic")
+        subject_map = {
+            "In Progress": "🔧 Your Complaint Is In Progress — JanSetu",
+            "Assigned": "📋 Complaint Assigned — JanSetu",
+            "Resolved": "✅ Complaint Resolved — JanSetu",
+            "Closed": "🎉 Complaint Closed — JanSetu",
+            "Rejected": "⚠️ Complaint Re-escalated — JanSetu",
+        }
+        subj = subject_map.get(payload.status, f"Ticket Update: {payload.status} — JanSetu")
         if citizen.phone:
-            send_sms(citizen.phone, msg)
-        send_email(citizen.email, f"Ticket Update: {payload.status}", msg)
+            send_sms(citizen.phone, "", event=evt, title=complaint.title)
+        send_email(
+            citizen.email, subj, "",
+            event=evt, title=complaint.title, citizen_name=citizen.full_name
+        )
         
     db.commit()
     db.refresh(complaint)
@@ -708,8 +734,11 @@ def close_complaint(
     )
     
     if current_user.phone:
-        send_sms(current_user.phone, f"CityShakti: You have successfully closed ticket '{complaint.title}'. Thank you!")
-    send_email(current_user.email, "Ticket Closed Successfully", f"Ticket '{complaint.title}' has been officially verified and archived.")
+        send_sms(current_user.phone, "", event="closed", title=complaint.title)
+    send_email(
+        current_user.email, "🎉 Complaint Closed — JanSetu", "",
+        event="closed", title=complaint.title, citizen_name=current_user.full_name
+    )
     
     db.commit()
     return complaint

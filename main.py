@@ -38,7 +38,16 @@ logging.basicConfig(level=logging.INFO)
 
 @app.get("/api/health", tags=["System"])
 def health_check():
-    return {"status": "ok", "version": "1.0.2"}
+    return {"status": "ok", "version": "1.0.3"}
+
+@app.get("/api/test-network", tags=["System"])
+def test_network():
+    import urllib.request
+    try:
+        with urllib.request.urlopen("https://www.google.com", timeout=5) as r:
+            return {"status": "success", "info": "Reached Google", "code": r.status}
+    except Exception as e:
+        return {"status": "fail", "error": str(e)}
 
 
 @app.on_event("startup")

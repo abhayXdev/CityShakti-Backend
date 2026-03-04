@@ -1,120 +1,95 @@
 import logging
 import os
-import re
-import smtplib
-import ssl
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
+import requests
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
 
-GMAIL_USER = os.getenv("GMAIL_USER", "")
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 
 logger = logging.getLogger(__name__)
 
-
 # ────────────────────────────────────────────────────
-# EMAIL OTP SENDER (Gmail SMTP — Free Forever)
+# EMAIL OTP SENDER (Brevo API — Works on Render)
 # ────────────────────────────────────────────────────
 
 def send_otp_email(to_email: str, otp_code: str):
     """
-    Sends a professional HTML OTP email via Gmail SMTP.
-    Requires GMAIL_USER and GMAIL_APP_PASSWORD env vars.
-    Falls back to terminal print if not configured.
+    Sends a professional HTML OTP email via Brevo REST API.
+    Works on Render because it uses Port 443 (HTTPS), not SMTP.
     """
-    html_body = f"""<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"/><title>JanSetu — Email Verification</title></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 0;">
-    <tr><td align="center">
-      <table width="520" cellpadding="0" cellspacing="0"
-             style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-        <!-- HEADER -->
-        <tr>
-          <td style="background:linear-gradient(135deg,#1a56db,#0284c7);padding:24px 32px;text-align:center;">
-            <h1 style="margin:0;color:#fff;font-size:20px;letter-spacing:0.5px;">🏗️ JanSetu</h1>
-            <p style="margin:4px 0 0;color:#bfdbfe;font-size:12px;">Smart Civic Monitoring System — Government of India</p>
-          </td>
-        </tr>
-        <!-- BODY -->
-        <tr>
-          <td style="padding:32px;">
-            <p style="font-size:15px;color:#111827;font-weight:600;margin:0 0 8px;">Email Verification</p>
-            <p style="font-size:14px;color:#374151;margin:0 0 24px;">
-              Use the code below to verify your email and complete your JanSetu registration.
-              This code is valid for <strong>5 minutes</strong>.
-            </p>
-            <!-- OTP BOX -->
-            <div style="background:#f0f9ff;border:2px solid #0284c7;border-radius:10px;
-                        text-align:center;padding:24px 0;margin:0 0 24px;">
-              <span style="font-size:40px;font-weight:800;letter-spacing:12px;color:#1a56db;
-                           font-family:'Courier New',monospace;">{otp_code}</span>
-            </div>
-            <p style="font-size:13px;color:#6b7280;">
-              If you did not request this, please ignore this email.
-              <strong>Do not share this code with anyone.</strong>
-            </p>
-          </td>
-        </tr>
-        <!-- FOOTER -->
-        <tr>
-          <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:16px 32px;text-align:center;">
-            <p style="font-size:11px;color:#9ca3af;margin:0;">
-              Automated notification from JanSetu &bull; Do not reply &bull;
-              Secured by <strong>National Informatics Centre (NIC)</strong>
-            </p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>"""
-
-    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
-        # Fallback: print to terminal if not configured
-        print("\n" + "═" * 55)
-        print("📧  OTP EMAIL (Simulation — set GMAIL_USER + GMAIL_APP_PASSWORD)")
-        print("═" * 55)
-        print(f"  To      : {to_email}")
-        print(f"  Subject : 🔐 Your JanSetu Verification Code")
-        print(f"  OTP     : {otp_code}  (valid 5 minutes)")
-        print("═" * 55 + "\n")
-        return
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "🔐 Your JanSetu Verification Code"
-    msg["From"] = f"JanSetu Notifications <{GMAIL_USER}>"
-    msg["To"] = to_email
-    msg.attach(MIMEText(f"Your JanSetu OTP is: {otp_code}\nValid for 5 minutes.", "plain"))
-    msg.attach(MIMEText(html_body, "html"))
-
-    try:
-        context = ssl.create_default_context()
-        # Attempt SMTP (might fail on Render Free tier)
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
-            server.starttls(context=context)
-            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-            server.sendmail(GMAIL_USER, to_email, msg.as_string())
-        logger.info(f"OTP email sent to {to_email}")
-    except Exception as e:
-        logger.warning(f"SMTP failed on Render network: {e}")
-        # FALLBACK: Print to Render console so developer can see it
+    if not BREVO_API_KEY:
+        # Fallback: Print to console for dev testing if no API key
         print("\n" + "█" * 60)
-        print("🚨  RENDER SMTP BLOCKED: OTP FALLBACK LOG")
+        print("🚨  BREVO API KEY MISSING: OTP FALLBACK LOG")
         print("█" * 60)
         print(f"  TARGET EMAIL : {to_email}")
         print(f"  OTP CODE     : {otp_code}")
-        print(f"  ACTION       : Copy this code from logs to the UI")
         print("█" * 60 + "\n")
-        
-        # We don't raise the error here, so the frontend thinks it "sent" 
-        # and lets the user type in the code from the logs.
+        return True
+
+    url = "https://api.brevo.com/v3/smtp/email"
+    
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "api-key": BREVO_API_KEY
+    }
+
+    # Professional HTML Body for Brevo
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px;">
+        <div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 20px;">
+                <h1 style="color: #1a56db; margin: 0;">🏗️ JanSetu</h1>
+                <p style="color: #64748b; font-size: 14px; margin: 5px 0 0;">Government of India - Civic Monitoring</p>
+            </div>
+            <div style="padding: 30px 20px; text-align: center;">
+                <p style="font-size: 16px; color: #334155;">Please use the following One-Time Password (OTP) to verify your account:</p>
+                <div style="background: #f0f9ff; border: 2px dashed #0284c7; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                    <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #1e40af;">{otp_code}</span>
+                </div>
+                <p style="font-size: 14px; color: #64748b;">This code will expire in 5 minutes. Please do not share this code with anyone.</p>
+            </div>
+            <div style="text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                © 2026 JanSetu. All rights reserved. <br>
+                Secured by National Informatics Centre (NIC)
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    payload = {
+        "sender": {"name": "JanSetu Support", "email": "support@cityshakti.com"},
+        "to": [{"email": to_email}],
+        "subject": "🔐 Your JanSetu Verification Code",
+        "htmlContent": html_content
+    }
+
+    try:
+        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
+        if response.status_code in [201, 200, 202]:
+            logger.info(f"OTP email sent successfully to {to_email} via Brevo")
+            return True
+        else:
+            logger.error(f"Brevo API Error: {response.text}")
+            # Fallback to logs if API fails
+            raise Exception(f"Brevo API returned {response.status_code}")
+            
+    except Exception as e:
+        logger.warning(f"Brevo API failed: {e}")
+        # FALLBACK: Print to Render console so developer can still see it
+        print("\n" + "█" * 60)
+        print("🚨  BREVO API FAILED: OTP FALLBACK LOG")
+        print("█" * 60)
+        print(f"  TARGET EMAIL : {to_email}")
+        print(f"  OTP CODE     : {otp_code}")
+        print(f"  ERROR        : {str(e)}")
+        print("█" * 60 + "\n")
         return True
 
 

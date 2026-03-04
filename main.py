@@ -113,6 +113,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             "success": False,
             "error": "An unexpected server error occurred.",
             "code": "INTERNAL_ERROR",
+            "details": str(exc)
         },
     )
 

@@ -239,3 +239,75 @@ def calculate_impact_score(
     community_multiplier = 1.0 + (math.log(upvotes + 1) * 0.15)
     score = min(100.0, base_score * community_multiplier)
     return round(score, 2)
+
+
+def predict_resolution_deadline(
+    db, category: str, ward: str, priority: int
+) -> float:
+    """
+    Predicts the number of hours a department will take to resolve a complaint based on:
+    1. The category of the complaint.
+    2. The geographic region (ward).
+    3. The historical average resolution time of `Closed` or `Resolved` tickets for that combo.
+    Fallback: A static SLA matrix if there's insufficient data (< 3 tickets).
+    """
+    from models import Complaint
+    from sqlalchemy import func
+    from datetime import timezone
+
+    # Fallback static SLA matrix (in hours)
+    # 5: Emergency (24h), 4: Critical (48h), 3: Urgent (7 days), 2: High (14 days), 1: Standard (30 days)
+    fallback_slas = {
+        5: 24,
+        4: 48,
+        3: 168,
+        2: 336,
+        1: 720
+    }
+    
+    baseline_hours = fallback_slas.get(priority, 720)
+
+    # 1. Fetch historical resolved/closed complaints in this exact ward and category
+    historical_tickets = (
+        db.query(Complaint)
+        .filter(
+            Complaint.category == category,
+            Complaint.ward == ward,
+            Complaint.status.in_(["Resolved", "Closed"]),
+            Complaint.resolved_at.isnot(None),
+            Complaint.is_merged.is_(False)
+        )
+        .all()
+    )
+
+    # 2. Insufficient data check
+    if len(historical_tickets) < 3:
+        return float(baseline_hours)
+
+    # 3. Calculate average resolution time
+    total_seconds = 0.0
+    for ticket in historical_tickets:
+        created = ticket.created_at
+        resolved = ticket.resolved_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        if resolved.tzinfo is None:
+            resolved = resolved.replace(tzinfo=timezone.utc)
+        
+        diff = (resolved - created).total_seconds()
+        total_seconds += diff
+        
+    avg_seconds = total_seconds / len(historical_tickets)
+    avg_hours = avg_seconds / 3600.0
+    
+    # 4. Apply ML dampening heuristics
+    # We do not want to allow extremely lazy departments to be given mathematically infinite SLA windows.
+    # We cap the ML "slack" expansion to strictly +50% of the maximum baseline SLA.
+    # Conversely, if they are incredibly fast, we tighten the SLA by up to -50% to demand peak performance.
+
+    max_slack_hours = baseline_hours * 1.5
+    min_tight_hours = baseline_hours * 0.5
+    
+    predicted_hours = max(min_tight_hours, min(avg_hours, max_slack_hours))
+    
+    return predicted_hours

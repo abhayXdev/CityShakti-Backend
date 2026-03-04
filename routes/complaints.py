@@ -17,7 +17,8 @@ from schemas import (APIMessage, ComplaintAdminUpdate, ComplaintAssign,
                      ComplaintProgressUpdateCreate, ComplaintProgressUpdateOut,
                      ComplaintStatusUpdate)
 from services.ai import (CATEGORY_TO_DEPARTMENT, calculate_impact_score,
-                         cosine_similarity, predict_category, predict_priority)
+                         cosine_similarity, predict_category, predict_priority,
+                         predict_resolution_deadline)
 
 router = APIRouter(prefix="/api/complaints", tags=["Complaints"])
 RESOLVED_STATUS = "Resolved"
@@ -172,9 +173,12 @@ def categorize_and_update(complaint_id: int):
             )
             complaint.ai_confidence_score = confidence
 
-        resolution_days = {5: 1, 4: 3, 3: 7, 2: 14}.get(manual_priority, 30)
+        # ML Predicted Resolution Deadline
+        predicted_hours = predict_resolution_deadline(
+            db, category=final_category, ward=complaint.ward, priority=manual_priority
+        )
         expected_resolution_date = datetime.now(timezone.utc) + timedelta(
-            days=resolution_days
+            hours=predicted_hours
         )
 
         complaint.priority = manual_priority
@@ -221,6 +225,11 @@ def create_complaint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("citizen", "officer", "sudo")),
 ):
+    # Intelligent Machine Learning Predicted Deadline
+    predicted_hours = predict_resolution_deadline(
+        db, category=payload.category, ward=payload.ward, priority=payload.priority
+    )
+    
     complaint = Complaint(
         title=payload.title,
         description=payload.description,
@@ -234,7 +243,7 @@ def create_complaint(
         priority_label="Pending Evaluation",
         citizen_id=current_user.id,
         status="Submitted",
-        expected_resolution_date=datetime.now(timezone.utc) + timedelta(days=30),
+        expected_resolution_date=datetime.now(timezone.utc) + timedelta(hours=predicted_hours),
     )
     complaint.reports_count = 1
     complaint.impact_score = calculate_impact_score(
@@ -682,6 +691,59 @@ def close_complaint(
         actor=current_user.full_name,
         actor_id=current_user.id,
     )
+    
+    db.commit()
+    return complaint
+
+
+@router.post("/{complaint_id}/re_escalate", response_model=ComplaintOut)
+def re_escalate_complaint(
+    complaint_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("citizen"))
+):
+    """
+    Called by the Citizen to REJECT a "Resolved" status because the work was poorly done or falsified.
+    Reverts status to In Progress and directly penalizes the SLA & Priority levels.
+    """
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found")
+    
+    if complaint.citizen_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only re-escalate your own complaints")
+        
+    if complaint.status != RESOLVED_STATUS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Complaint must be Resolved before you can reject it")
+        
+    old_status = complaint.status
+    old_priority = complaint.priority
+    
+    # Revert Status
+    complaint.status = "In Progress"
+    
+    # Penalize Priority (+1, max 5)
+    new_priority = min(5, complaint.priority + 1)
+    complaint.priority = new_priority
+    
+    labels = {0: "Low", 1: "Medium", 2: "High", 3: "Urgent", 4: "Critical", 5: "Emergency"}
+    complaint.priority_label = labels.get(new_priority, "Medium")
+    
+    # Directly Breach SLA
+    complaint.escalation_level += 1
+    complaint.is_sla_breached = True
+    
+    add_activity(
+        db,
+        complaint_id=complaint.id,
+        action="Citizen Rejected Resolution",
+        details=f"Citizen physically verified and rejected the resolution. Re-escalated Priority from {old_priority} -> {new_priority}.",
+        previous_value=old_status,
+        new_value="In Progress",
+        actor=current_user.full_name,
+        actor_id=current_user.id,
+    )
+
     db.commit()
     db.refresh(complaint)
     return complaint

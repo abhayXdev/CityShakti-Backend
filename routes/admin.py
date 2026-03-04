@@ -27,7 +27,7 @@ def scan_and_escalate_slas(
     breached_complaints = (
         db.query(Complaint)
         .filter(
-            Complaint.status != "Resolved",
+            ~Complaint.status.in_(["Resolved", "Closed"]),
             Complaint.is_merged.is_(False),
             Complaint.expected_resolution_date < now,
             Complaint.is_sla_breached.is_(False),

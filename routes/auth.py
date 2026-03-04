@@ -143,7 +143,7 @@ def me(current_user: User = Depends(get_current_user)):
 # EMAIL OTP ENDPOINTS
 # ─────────────────────────────────────────────────────────
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 class OTPRequest(BaseModel):
     email: EmailStr

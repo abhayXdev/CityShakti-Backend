@@ -1,14 +1,19 @@
+import random
+import string
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from database import get_db
 from dependencies import get_current_user
-from models import User
+from models import EmailOTP, User
 from rate_limiter import limiter
 from schemas import (RefreshTokenRequest, TokenResponse, UserLogin, UserOut,
                      UserRegister)
 from security import (create_access_token, create_refresh_token, decode_token,
                       hash_password, verify_password)
+from services.notifications import send_otp_email
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
@@ -132,3 +137,153 @@ def refresh_token(
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+# ─────────────────────────────────────────────────────────
+# EMAIL OTP ENDPOINTS
+# ─────────────────────────────────────────────────────────
+
+from pydantic import BaseModel, EmailStr
+
+class OTPRequest(BaseModel):
+    email: EmailStr
+
+class OTPVerify(BaseModel):
+    email: EmailStr
+    otp_code: str
+
+
+@router.post("/send-email-otp", status_code=status.HTTP_200_OK)
+@limiter.limit("3/minute")
+def send_email_otp(request: Request, payload: OTPRequest, db: Session = Depends(get_db)):
+    """
+    Generate a 6-digit OTP, store in DB, and email it to the citizen.
+    Rate limited to 3 sends per minute to prevent abuse.
+    """
+    # Invalidate any previous unused OTPs for this email
+    db.query(EmailOTP).filter(
+        EmailOTP.email == payload.email.lower(),
+        EmailOTP.is_used == False,
+    ).delete(synchronize_session=False)
+
+    # Generate a fresh 6-digit code
+    code = "".join(random.choices(string.digits, k=6))
+    expires = datetime.now(timezone.utc) + timedelta(minutes=5)
+
+    otp_record = EmailOTP(
+        email=payload.email.lower(),
+        otp_code=code,
+        expires_at=expires,
+    )
+    db.add(otp_record)
+    db.commit()
+
+    # Send via Gmail SMTP
+    send_otp_email(payload.email, code)
+
+    return {"message": "OTP sent successfully. Valid for 5 minutes."}
+
+
+@router.post("/verify-email-otp", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
+def verify_email_otp(request: Request, payload: OTPVerify, db: Session = Depends(get_db)):
+    """
+    Validate the OTP code and mark it as used.
+    Returns a one-time verification token that the frontend passes to /register.
+    """
+    record = db.query(EmailOTP).filter(
+        EmailOTP.email == payload.email.lower(),
+        EmailOTP.otp_code == payload.otp_code,
+        EmailOTP.is_used == False,
+    ).order_by(EmailOTP.created_at.desc()).first()
+
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP code. Please try again.",
+        )
+
+    if datetime.now(timezone.utc) > record.expires_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has expired. Please request a new one.",
+        )
+
+    # Mark as used so it can't be replayed
+    record.is_used = True
+    db.commit()
+
+    return {"verified": True, "email": payload.email}
+
+
+# ─────────────────────────────────────────────────────────
+# FORGOT PASSWORD ENDPOINTS (works for both Citizens & Officers)
+# ─────────────────────────────────────────────────────────
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+@limiter.limit("3/minute")
+def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Sends a password-reset OTP to the registered email.
+    Works for Citizens AND Officers.
+    Always returns success (to prevent user enumeration attacks).
+    """
+    user = db.query(User).filter(User.email == payload.email.lower()).first()
+    if user and user.is_active:
+        # Invalidate any previous OTPs for this email
+        db.query(EmailOTP).filter(
+            EmailOTP.email == payload.email.lower(),
+            EmailOTP.is_used == False,
+        ).delete(synchronize_session=False)
+
+        code = "".join(random.choices(string.digits, k=6))
+        expires = datetime.now(timezone.utc) + timedelta(minutes=10)
+        otp_record = EmailOTP(
+            email=payload.email.lower(),
+            otp_code=code,
+            expires_at=expires,
+        )
+        db.add(otp_record)
+        db.commit()
+        send_otp_email(payload.email, code)
+
+    # Always return 200 to prevent email enumeration
+    return {"message": "If that email is registered, an OTP has been sent."}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
+def reset_password(request: Request, payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Validates OTP and sets a new password for the account.
+    """
+    record = db.query(EmailOTP).filter(
+        EmailOTP.email == payload.email.lower(),
+        EmailOTP.otp_code == payload.otp_code,
+        EmailOTP.is_used == False,
+    ).order_by(EmailOTP.created_at.desc()).first()
+
+    if not record or datetime.now(timezone.utc) > record.expires_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired OTP.",
+        )
+
+    user = db.query(User).filter(User.email == payload.email.lower()).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    user.password_hash = hash_password(payload.new_password)
+    record.is_used = True
+    db.commit()
+
+    return {"message": "Password reset successfully. You may now log in."}

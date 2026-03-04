@@ -1,6 +1,110 @@
 import logging
+import os
+import re
+import smtplib
+import ssl
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+GMAIL_USER = os.getenv("GMAIL_USER", "")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
 
 logger = logging.getLogger(__name__)
+
+
+# ────────────────────────────────────────────────────
+# EMAIL OTP SENDER (Gmail SMTP — Free Forever)
+# ────────────────────────────────────────────────────
+
+def send_otp_email(to_email: str, otp_code: str):
+    """
+    Sends a professional HTML OTP email via Gmail SMTP.
+    Requires GMAIL_USER and GMAIL_APP_PASSWORD env vars.
+    Falls back to terminal print if not configured.
+    """
+    html_body = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>JanSetu — Email Verification</title></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 0;">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0"
+             style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <!-- HEADER -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#1a56db,#0284c7);padding:24px 32px;text-align:center;">
+            <h1 style="margin:0;color:#fff;font-size:20px;letter-spacing:0.5px;">🏗️ JanSetu</h1>
+            <p style="margin:4px 0 0;color:#bfdbfe;font-size:12px;">Smart Civic Monitoring System — Government of India</p>
+          </td>
+        </tr>
+        <!-- BODY -->
+        <tr>
+          <td style="padding:32px;">
+            <p style="font-size:15px;color:#111827;font-weight:600;margin:0 0 8px;">Email Verification</p>
+            <p style="font-size:14px;color:#374151;margin:0 0 24px;">
+              Use the code below to verify your email and complete your JanSetu registration.
+              This code is valid for <strong>5 minutes</strong>.
+            </p>
+            <!-- OTP BOX -->
+            <div style="background:#f0f9ff;border:2px solid #0284c7;border-radius:10px;
+                        text-align:center;padding:24px 0;margin:0 0 24px;">
+              <span style="font-size:40px;font-weight:800;letter-spacing:12px;color:#1a56db;
+                           font-family:'Courier New',monospace;">{otp_code}</span>
+            </div>
+            <p style="font-size:13px;color:#6b7280;">
+              If you did not request this, please ignore this email.
+              <strong>Do not share this code with anyone.</strong>
+            </p>
+          </td>
+        </tr>
+        <!-- FOOTER -->
+        <tr>
+          <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:16px 32px;text-align:center;">
+            <p style="font-size:11px;color:#9ca3af;margin:0;">
+              Automated notification from JanSetu &bull; Do not reply &bull;
+              Secured by <strong>National Informatics Centre (NIC)</strong>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
+        # Fallback: print to terminal if not configured
+        print("\n" + "═" * 55)
+        print("📧  OTP EMAIL (Simulation — set GMAIL_USER + GMAIL_APP_PASSWORD)")
+        print("═" * 55)
+        print(f"  To      : {to_email}")
+        print(f"  Subject : 🔐 Your JanSetu Verification Code")
+        print(f"  OTP     : {otp_code}  (valid 5 minutes)")
+        print("═" * 55 + "\n")
+        return
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "🔐 Your JanSetu Verification Code"
+    msg["From"] = f"JanSetu Notifications <{GMAIL_USER}>"
+    msg["To"] = to_email
+    msg.attach(MIMEText(f"Your JanSetu OTP is: {otp_code}\nValid for 5 minutes.", "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+            server.sendmail(GMAIL_USER, to_email, msg.as_string())
+        logger.info(f"OTP email sent to {to_email}")
+    except Exception as e:
+        logger.error(f"Failed to send OTP email to {to_email}: {e}")
+        raise
+
+
 
 
 # ─────────────────────────────────────────────────────────

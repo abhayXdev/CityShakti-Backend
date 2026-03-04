@@ -19,6 +19,7 @@ from schemas import (APIMessage, ComplaintAdminUpdate, ComplaintAssign,
 from services.ai import (CATEGORY_TO_DEPARTMENT, calculate_impact_score,
                          cosine_similarity, predict_category, predict_priority,
                          predict_resolution_deadline)
+from services.notifications import send_email, send_sms
 
 router = APIRouter(prefix="/api/complaints", tags=["Complaints"])
 RESOLVED_STATUS = "Resolved"
@@ -262,6 +263,12 @@ def create_complaint(
         actor=current_user.full_name,
         actor_id=current_user.id,
     )
+    
+    # Send Automated Notifications
+    if current_user.phone:
+        send_sms(current_user.phone, f"CityShakti: Your complaint '{complaint.title}' has been registered successfully.")
+    send_email(current_user.email, "Complaint Registered", f"Hello {current_user.full_name},\n\nYour complaint '{complaint.title}' has been successfully logged and is currently Pending Evaluation.\nYou will receive further updates as it progresses.")
+
     background_tasks.add_task(run_auto_duplicate_detection, complaint.id)
     background_tasks.add_task(categorize_and_update, complaint.id)
     return complaint
@@ -485,6 +492,14 @@ def update_complaint_status(
         actor=payload.actor or current_user.full_name,
         actor_id=current_user.id,
     )
+    
+    citizen = complaint.citizen
+    if citizen:
+        msg = f"CityShakti: Your complaint '{complaint.title}' status has been updated to {payload.status}."
+        if citizen.phone:
+            send_sms(citizen.phone, msg)
+        send_email(citizen.email, f"Ticket Update: {payload.status}", msg)
+        
     db.commit()
     db.refresh(complaint)
     return complaint
@@ -692,6 +707,10 @@ def close_complaint(
         actor_id=current_user.id,
     )
     
+    if current_user.phone:
+        send_sms(current_user.phone, f"CityShakti: You have successfully closed ticket '{complaint.title}'. Thank you!")
+    send_email(current_user.email, "Ticket Closed Successfully", f"Ticket '{complaint.title}' has been officially verified and archived.")
+    
     db.commit()
     return complaint
 
@@ -743,6 +762,10 @@ def re_escalate_complaint(
         actor=current_user.full_name,
         actor_id=current_user.id,
     )
+
+    if current_user.phone:
+        send_sms(current_user.phone, f"CityShakti: ALERT - Your ticket '{complaint.title}' has been severely Re-escalated to Priority Level {new_priority}.")
+    send_email(current_user.email, "Ticket Re-escalated", f"Your rejection for ticket '{complaint.title}' was received. The priority has been penalized and officers have been notified.")
 
     db.commit()
     db.refresh(complaint)

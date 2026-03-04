@@ -16,6 +16,7 @@ class User(Base):
     role = Column(String, nullable=False, default="citizen", index=True)
     ward = Column(String, nullable=True, index=True)
     department = Column(String, nullable=True, index=True)
+    phone = Column(String, nullable=True, index=True)
     points = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     is_suspended = Column(Boolean, default=False)

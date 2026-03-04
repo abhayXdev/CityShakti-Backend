@@ -15,6 +15,7 @@ class UserRegister(BaseModel):
     role: Literal["citizen", "officer", "sudo"] = "citizen"
     ward: Optional[str] = Field(default=None, pattern=r"^\d{6}$", description="6-digit Indian PIN code")
     department: Optional[str] = Field(default=None, max_length=100)
+    phone: Optional[str] = Field(default=None, max_length=15, description="E.164 formatted phone number")
 
 
 class UserLogin(BaseModel):
@@ -40,6 +41,7 @@ class UserOut(BaseModel):
     role: str
     ward: Optional[str]
     department: Optional[str] = None
+    phone: Optional[str] = None
     points: int = 0
     is_active: bool
 

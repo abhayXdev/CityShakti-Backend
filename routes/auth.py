@@ -52,6 +52,7 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
         role=payload.role,
         ward=payload.ward,
         department=payload.department,
+        phone=payload.phone,
         is_active=False if payload.role == "officer" else True,
     )
     db.add(user)

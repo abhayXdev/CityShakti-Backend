@@ -165,13 +165,13 @@ class OTPVerify(BaseModel):
 
 @router.post("/send-email-otp", status_code=status.HTTP_200_OK)
 @limiter.limit("3/minute")
-def send_email_otp(request: Request, payload: dict, db: Session = Depends(get_db)):
+def send_email_otp(request: Request, payload: OTPRequest, db: Session = Depends(get_db)):
     """
     Generates a secure 6-digit OTP, stores it with a 5-minute expiration,
     and dispatches it via the configured Email provider (e.g., Brevo API).
     Overrides any previous unverified OTP for the given email to prevent spam.
     """
-    email = payload.get("email")
+    email = payload.email
     # Invalidate any previous unused OTPs for this email
     db.query(EmailOTP).filter(
         EmailOTP.email == email.lower(),

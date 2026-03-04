@@ -1,5 +1,4 @@
 import statistics
-from datetime import timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func

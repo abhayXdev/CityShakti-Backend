@@ -149,15 +149,26 @@ MEDIUM_URGENCY_KEYWORDS = {
 
 
 def tokenize(text: str) -> list[str]:
+    """
+    Cleans and tokenizes input text by forcing lowercase, extracting alphanumeric words,
+    and filtering out common English stop words.
+    """
     words = re.findall(r"[a-z0-9]+", text.lower())
     return [word for word in words if word not in STOP_WORDS]
 
 
 def vectorize(text: str) -> Counter:
+    """
+    Converts a raw string into a frequency map (Counter) of its valid tokens.
+    """
     return Counter(tokenize(text))
 
 
 def cosine_similarity(a: str, b: str) -> float:
+    """
+    Calculates the text similarity between two strings using Cosine Similarity over Term Frequency.
+    Returns a float between 0.0 (completely different) and 1.0 (exact match).
+    """
     vec_a = vectorize(a)
     vec_b = vectorize(b)
     if not vec_a or not vec_b:
@@ -184,6 +195,10 @@ def _contains_phrase(text: str, phrases: Iterable[str]) -> bool:
 
 
 def predict_priority(title: str, description: str) -> Tuple[int, str]:
+    """
+    Estimates the urgency of a complaint by scanning for critical keywords.
+    Returns the severity level (1-5) and a human-readable label (Low/Medium/High).
+    """
     merged = f"{title} {description}".lower()
 
     if _contains_phrase(merged, HIGH_URGENCY_KEYWORDS):
@@ -194,6 +209,10 @@ def predict_priority(title: str, description: str) -> Tuple[int, str]:
 
 
 def predict_category(title: str, description: str) -> Tuple[str, float]:
+    """
+    Predicts the appropriate civic category for a complaint using a weighted keyword-matching heuristic.
+    Returns the predicted category name and a confidence score multiplier (0.0 to 1.0).
+    """
     merged = f"{title} {description}".lower()
     tokens = set(tokenize(merged))
 
@@ -233,6 +252,11 @@ def predict_category(title: str, description: str) -> Tuple[str, float]:
 def calculate_impact_score(
     reports_count: int, priority: int, upvotes: int = 0
 ) -> float:
+    """
+    Calculates the dynamic 'Impact Score' out of 100 for a complaint.
+    It heavily weights the internal severity/priority (0-50 pts) and duplicate links (12 pts/link),
+    then applies a logarithmic multiplier based on community upvotes.
+    """
     # Upvotes act as a dynamic community multiplier for impact score
     upvotes = upvotes or 0
     base_score = reports_count * 12 + priority * 10
@@ -252,7 +276,6 @@ def predict_resolution_deadline(
     Fallback: A static SLA matrix if there's insufficient data (< 3 tickets).
     """
     from models import Complaint
-    from sqlalchemy import func
     from datetime import timezone
 
     # Fallback static SLA matrix (in hours)

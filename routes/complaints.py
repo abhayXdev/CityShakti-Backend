@@ -7,7 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, get_db
-from dependencies import get_current_user, require_role
+from dependencies import require_role
 from models import (Complaint, ComplaintActivity, ComplaintUpdate,
                     ComplaintUpvote, User)
 from rate_limiter import limiter
@@ -60,6 +60,11 @@ def merge_complaints(
     actor: Optional[str],
     actor_id: Optional[int],
 ):
+    """
+    Merges a duplicate `source` complaint into a primary `target` complaint.
+    Resolves the source complaint, increments the target's report count,
+    recalculates its impact score, and logs the activity to the timeline.
+    """
     if source.id == target.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -156,6 +161,12 @@ def run_auto_duplicate_detection(complaint_id: int):
 
 
 def categorize_and_update(complaint_id: int):
+    """
+    Background Task: Analyzes a newly created complaint using the AI models.
+    Predicts priority, category, and resolution deadline based on historical data.
+    If the text indicates an emergency or matches a known pattern, it auto-assigns 
+    the complaint directly to the correct municipal department.
+    """
     db = SessionLocal()
     try:
         complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()

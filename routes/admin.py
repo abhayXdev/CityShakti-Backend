@@ -1,8 +1,6 @@
 from datetime import datetime, timezone
-from typing import List
 
-from fastapi import APIRouter, Depends, status, HTTPException
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -201,11 +199,11 @@ def approve_officer(
     
     # Simulate sending an approval email
     print(f"\n[{'='*40}]")
-    print(f"📧 MOCK NOTIFICATION SYSTEM")
+    print("📧 MOCK NOTIFICATION SYSTEM")
     print(f"To: {officer.email}")
-    print(f"Subject: Application Approved - CityShakti Officer")
+    print("Subject: Application Approved - CityShakti Officer")
     print(f"Body: Hello {officer.full_name}, your application to be the {officer.department} Officer for PIN {officer.ward} has been approved by the Sudo User.")
-    print(f"Link: You may now log in to the officer portal.")
+    print("Link: You may now log in to the officer portal.")
     print(f"[{'='*40}]\n")
     
     return {"message": "Officer successfully approved", "officer_email": officer.email}

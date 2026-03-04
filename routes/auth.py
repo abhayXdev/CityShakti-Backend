@@ -21,6 +21,11 @@ router = APIRouter(prefix="/api/auth", tags=["Auth"])
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 def register(request: Request, payload: UserRegister, db: Session = Depends(get_db)):
+    """
+    Registers a new Citizen or Officer.
+    For Officers, it enforces PIN code logic and restricts creation to 
+    1 administrative officer per department per ward.
+    """
     existing = db.query(User).filter(User.email == payload.email.lower()).first()
     if existing:
         raise HTTPException(
@@ -69,6 +74,11 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
 def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
+    """
+    Authenticates a user via email and password.
+    Returns short-lived Access Tokens and long-lived Refresh Tokens.
+    Blocks login if the account is suspended or awaiting Super Admin approval.
+    """
     user = db.query(User).filter(User.email == payload.email.lower()).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
@@ -155,14 +165,16 @@ class OTPVerify(BaseModel):
 
 @router.post("/send-email-otp", status_code=status.HTTP_200_OK)
 @limiter.limit("3/minute")
-def send_email_otp(request: Request, payload: OTPRequest, db: Session = Depends(get_db)):
+def send_email_otp(request: Request, payload: dict, db: Session = Depends(get_db)):
     """
-    Generate a 6-digit OTP, store in DB, and email it to the citizen.
-    Rate limited to 3 sends per minute to prevent abuse.
+    Generates a secure 6-digit OTP, stores it with a 5-minute expiration,
+    and dispatches it via the configured Email provider (e.g., Brevo API).
+    Overrides any previous unverified OTP for the given email to prevent spam.
     """
+    email = payload.get("email")
     # Invalidate any previous unused OTPs for this email
     db.query(EmailOTP).filter(
-        EmailOTP.email == payload.email.lower(),
+        EmailOTP.email == email.lower(),
         EmailOTP.is_used == False,
     ).delete(synchronize_session=False)
 

@@ -1,4 +1,3 @@
-import pytest
 
 
 def get_auth_token(client, email, password, role="citizen", full_name="User"):

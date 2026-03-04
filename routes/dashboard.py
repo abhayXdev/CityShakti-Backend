@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from dependencies import require_role
 from models import Complaint, User
-from schemas import CategoryStat, DashboardSummary, WardStat
+from schemas import DashboardSummary, WardStat
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 

@@ -8,7 +8,6 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import SQLAlchemyError
 
-from database import Base, engine
 from rate_limiter import limiter
 from routes import admin, auth, complaints, dashboard, transparency
 
@@ -38,11 +37,20 @@ logging.basicConfig(level=logging.INFO)
 
 @app.get("/api/health", tags=["System"])
 def health_check():
+    """
+    Basic health check endpoint to verify backend uptime and versioning.
+    Used by Render to confirm successful deployment.
+    """
     return {"status": "ok", "version": "1.0.0"}
 
 
 @app.on_event("startup")
 def on_startup():
+    """
+    Application startup event handler.
+    Automatically runs Alembic database migrations to ensure schema is up-to-date,
+    and seeds a default 'sudo' administrator account for initial access.
+    """
     import subprocess
     from security import hash_password
     from database import SessionLocal

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", os.getenv("GMAIL_USER", "jansetu.notifications@gmail.com"))
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ def send_otp_email(to_email: str, otp_code: str):
     """
 
     payload = {
-        "sender": {"name": "JanSetu Support", "email": "support@cityshakti.com"},
+        "sender": {"name": "JanSetu Support", "email": BREVO_SENDER_EMAIL},
         "to": [{"email": to_email}],
         "subject": "🔐 Your JanSetu Verification Code",
         "htmlContent": html_content
@@ -125,7 +126,7 @@ def send_sms(phone: str, message: str, event: str = "generic", title: str = "", 
     print("📱  JanSetu SMS NOTIFICATION")
     print("═" * 55)
     print(f"  To      : +91 {phone}")
-    print(f"  From    : JanSetu (VMID: NIC-JANSETU)")
+    print("  From    : JanSetu (VMID: NIC-JANSETU)")
     print(f"  Message : {body}")
     print("═" * 55 + "\n")
 
@@ -249,7 +250,7 @@ def send_email(
     print("📧  JanSetu EMAIL DISPATCHED")
     print("═" * 70)
     print(f"  To      : {email}")
-    print(f"  From    : no-reply@jansetu.gov.in")
+    print("  From    : no-reply@jansetu.gov.in")
     print(f"  Subject : {subject}")
     print("  " + "─" * 66)
     print("  [HTML BODY PREVIEW]")
@@ -260,6 +261,6 @@ def send_email(
         clean = re.sub(r"<[^>]+>", "", clean)
         print(f"  | {clean}")
     print("  " + "─" * 66)
-    print(f"  | This is an automated notification. Do not reply.")
-    print(f"  | Secured by National Informatics Centre (NIC)")
+    print("  | This is an automated notification. Do not reply.")
+    print("  | Secured by National Informatics Centre (NIC)")
     print("═" * 70 + "\n")

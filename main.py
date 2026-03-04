@@ -86,6 +86,7 @@ async def sqlalchemy_exception_handler(_: Request, exc: SQLAlchemyError):
             "success": False,
             "error": "Database operation failed",
             "code": "DB_ERROR",
+            "details": str(exc)
         },
     )
 

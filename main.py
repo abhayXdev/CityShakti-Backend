@@ -38,16 +38,26 @@ logging.basicConfig(level=logging.INFO)
 
 @app.get("/api/health", tags=["System"])
 def health_check():
-    return {"status": "ok", "version": "1.0.3"}
+    return {"status": "ok", "version": "1.0.4"}
 
 @app.get("/api/test-network", tags=["System"])
 def test_network():
     import urllib.request
+    import socket
+    results = {}
     try:
         with urllib.request.urlopen("https://www.google.com", timeout=5) as r:
-            return {"status": "success", "info": "Reached Google", "code": r.status}
+            results["https"] = "success"
     except Exception as e:
-        return {"status": "fail", "error": str(e)}
+        results["https"] = str(e)
+    
+    try:
+        ip = socket.gethostbyname("smtp.gmail.com")
+        results["dns_smtp"] = f"Success: {ip}"
+    except Exception as e:
+        results["dns_smtp"] = str(e)
+        
+    return results
 
 
 @app.on_event("startup")

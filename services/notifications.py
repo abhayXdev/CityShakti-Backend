@@ -96,12 +96,16 @@ def send_otp_email(to_email: str, otp_code: str):
 
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+        # Add 15 second timeout to avoid hanging on Render
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=15) as server:
             server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
             server.sendmail(GMAIL_USER, to_email, msg.as_string())
         logger.info(f"OTP email sent to {to_email}")
+    except (smtplib.SMTPException, ssl.SSLError, ConnectionError) as e:
+        logger.error(f"Network error sending OTP email to {to_email}: {e}")
+        raise
     except Exception as e:
-        logger.error(f"Failed to send OTP email to {to_email}: {e}")
+        logger.error(f"Unexpected error sending OTP email to {to_email}: {e}")
         raise
 
 

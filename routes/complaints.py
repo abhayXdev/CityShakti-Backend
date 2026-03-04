@@ -225,6 +225,7 @@ def create_complaint(
         title=payload.title,
         description=payload.description,
         ward=payload.ward,
+        incident_ward=payload.incident_ward or payload.ward,
         category=payload.category,
         latitude=payload.latitude,
         longitude=payload.longitude,
@@ -280,7 +281,8 @@ def list_community_complaints(
         )
 
     query = db.query(Complaint).filter(
-        Complaint.is_merged.is_(False), func.lower(Complaint.ward) == query_ward
+        Complaint.is_merged.is_(False), 
+        func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward)) == query_ward
     )
     return query.order_by(Complaint.created_at.desc()).offset(offset).limit(limit).all()
 
@@ -292,6 +294,7 @@ def list_complaints(
     priority: Optional[int] = Query(default=None, ge=0, le=5),
     assigned_to: Optional[str] = Query(default=None),
     include_merged: bool = Query(default=False),
+    out_of_bound: bool = Query(default=False),
     limit: int = Query(default=50, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -307,7 +310,15 @@ def list_complaints(
     if status:
         query = query.filter(Complaint.status == status)
     if ward:
-        query = query.filter(func.lower(Complaint.ward) == ward.lower())
+        if out_of_bound:
+            query = query.filter(
+                func.lower(Complaint.ward) == ward.lower(),
+                func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward)) != ward.lower()
+            )
+        else:
+            query = query.filter(
+                func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward)) == ward.lower()
+            )
     if priority is not None:
         query = query.filter(Complaint.priority == priority)
     if assigned_to:
@@ -332,7 +343,7 @@ def get_complaint(
         # A citizen can view if they own it, OR if it's a public complaint in their ward
         if complaint.citizen_id != current_user.id:
             user_ward = (current_user.ward or "").strip().lower()
-            comp_ward = (complaint.ward or "").strip().lower()
+            comp_ward = (complaint.incident_ward or complaint.ward or "").strip().lower()
             if not user_ward or comp_ward != user_ward:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -613,3 +624,40 @@ def upvote_complaint(
     )
     db.commit()
     return APIMessage(message="Complaint upvoted successfully")
+
+
+@router.post("/{complaint_id}/close", response_model=ComplaintOut)
+def close_complaint(
+    complaint_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("citizen"))
+):
+    """
+    Called by the Citizen to verify the work and officially CLOSE a resolved complaint.
+    """
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not complaint:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found")
+    
+    if complaint.citizen_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only close your own complaints")
+        
+    if complaint.status != RESOLVED_STATUS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Complaint must be Resolved before you can close it")
+        
+    old_status = complaint.status
+    complaint.status = "Closed"
+    
+    add_activity(
+        db,
+        complaint_id=complaint.id,
+        action="Citizen Verified",
+        details="Citizen verified the work and closed the complaint",
+        previous_value=old_status,
+        new_value="Closed",
+        actor=current_user.full_name,
+        actor_id=current_user.id,
+    )
+    db.commit()
+    db.refresh(complaint)
+    return complaint

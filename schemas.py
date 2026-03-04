@@ -50,6 +50,7 @@ class ComplaintCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     description: str = Field(min_length=10, max_length=5000)
     ward: str = Field(pattern=r"^\d{6}$", description="6-digit Indian PIN code")
+    incident_ward: Optional[str] = Field(default=None, pattern=r"^\d{6}$", description="6-digit Indian PIN code of incident")
     category: str = Field(default="General", max_length=100)
     photo_url: Optional[str] = Field(default=None, max_length=1000)
     latitude: float
@@ -73,7 +74,7 @@ class ComplaintAssign(BaseModel):
 
 
 class ComplaintStatusUpdate(BaseModel):
-    status: Literal["Submitted", "Assigned", "In Progress", "Resolved", "Rejected"]
+    status: Literal["Submitted", "Assigned", "In Progress", "Resolved", "Closed", "Rejected"]
     note: Optional[str] = None
     actor: Optional[str] = None
 
@@ -117,6 +118,7 @@ class ComplaintOut(BaseModel):
     title: str
     description: str
     ward: str
+    incident_ward: Optional[str] = None
     category: str
     priority: int
     priority_label: str

@@ -34,6 +34,7 @@ class Complaint(Base):
     title = Column(String, index=True)
     description = Column(String)
     ward = Column(String, index=True)
+    incident_ward = Column(String, index=True, nullable=True)
     citizen_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     merged_into_id = Column(
         Integer, ForeignKey("complaints.id"), nullable=True, index=True

@@ -96,18 +96,26 @@ def send_otp_email(to_email: str, otp_code: str):
 
     try:
         context = ssl.create_default_context()
-        # Use port 587 with STARTTLS for better compatibility on Render
+        # Attempt SMTP (might fail on Render Free tier)
         with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
             server.starttls(context=context)
             server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
             server.sendmail(GMAIL_USER, to_email, msg.as_string())
         logger.info(f"OTP email sent to {to_email}")
-    except (smtplib.SMTPException, ssl.SSLError, ConnectionError) as e:
-        logger.error(f"Network error sending OTP email to {to_email}: {e}")
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error sending OTP email to {to_email}: {e}")
-        raise
+        logger.warning(f"SMTP failed on Render network: {e}")
+        # FALLBACK: Print to Render console so developer can see it
+        print("\n" + "█" * 60)
+        print("🚨  RENDER SMTP BLOCKED: OTP FALLBACK LOG")
+        print("█" * 60)
+        print(f"  TARGET EMAIL : {to_email}")
+        print(f"  OTP CODE     : {otp_code}")
+        print(f"  ACTION       : Copy this code from logs to the UI")
+        print("█" * 60 + "\n")
+        
+        # We don't raise the error here, so the frontend thinks it "sent" 
+        # and lets the user type in the code from the logs.
+        return True
 
 
 

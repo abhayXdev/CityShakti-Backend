@@ -38,7 +38,7 @@ logging.basicConfig(level=logging.INFO)
 
 @app.get("/api/health", tags=["System"])
 def health_check():
-    return {"status": "ok", "version": "1.0.4"}
+    return {"status": "ok", "version": "1.0.5"}
 
 @app.get("/api/test-network", tags=["System"])
 def test_network():

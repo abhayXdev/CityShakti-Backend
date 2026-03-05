@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -343,20 +344,33 @@ def list_complaints(
         query = query.filter(Complaint.is_merged.is_(False))
     if status:
         query = query.filter(Complaint.status == status)
-    if ward:
+    target_ward = ward
+    if current_user.role == "officer" and not target_ward:
+        target_ward = current_user.ward
+
+    if target_ward:
         if out_of_bound:
             query = query.filter(
-                func.lower(Complaint.ward) == ward.lower(),
-                func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward)) != ward.lower()
+                func.lower(Complaint.ward) == target_ward.lower(),
+                func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward)) != target_ward.lower()
             )
         else:
             query = query.filter(
-                func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward)) == ward.lower()
+                func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward)) == target_ward.lower()
             )
     if priority is not None:
         query = query.filter(Complaint.priority == priority)
-    if assigned_to:
-        query = query.filter(Complaint.assigned_to == assigned_to)
+    if current_user.role == "officer":
+        dept = current_user.department
+        if dept:
+            # Fuzzy match in SQL for department: match exact or match where category/department-label matches
+            # Since the categorization logic sets assigned_department, we check that mostly.
+            # We use a broad ilike or exact check for the primary department name
+            clean_dept = re.sub(r'[^a-zA-Z0-9]', '%', dept) # fuzzy search pattern
+            query = query.filter(
+                (Complaint.assigned_department.ilike(f"%{dept}%")) | 
+                (Complaint.category.ilike(f"%{dept}%"))
+            )
 
     return query.order_by(Complaint.created_at.desc()).offset(offset).limit(limit).all()
 
@@ -386,6 +400,12 @@ def get_complaint(
     return complaint
 
 
+def is_same_dept(user_dept: Optional[str], comp_dept: str) -> bool:
+    if not user_dept: return True
+    ud = re.sub(r'[^a-z0-9]', '', user_dept.lower())
+    cd = re.sub(r'[^a-z0-9]', '', comp_dept.lower())
+    return ud == cd or cd.replace('s', '') in ud or ud.replace('s', '') in cd
+
 @router.patch("/{complaint_id}", response_model=ComplaintOut)
 def admin_update_complaint(
     complaint_id: int,
@@ -401,7 +421,7 @@ def admin_update_complaint(
 
     raw_dept = complaint.assigned_department or complaint.category or "General"
     complaint_dept = CATEGORY_TO_DEPARTMENT.get(raw_dept, raw_dept)
-    if current_user.department and current_user.department != complaint_dept:
+    if not is_same_dept(current_user.department, complaint_dept):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only manage complaints assigned to your department",
@@ -488,7 +508,7 @@ def update_complaint_status(
 
     raw_dept = complaint.assigned_department or complaint.category or "General"
     complaint_dept = CATEGORY_TO_DEPARTMENT.get(raw_dept, raw_dept)
-    if current_user.department and current_user.department != complaint_dept:
+    if not is_same_dept(current_user.department, complaint_dept):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only manage complaints assigned to your department",
@@ -561,7 +581,7 @@ def add_progress_update(
 
     raw_dept = complaint.assigned_department or complaint.category or "General"
     complaint_dept = CATEGORY_TO_DEPARTMENT.get(raw_dept, raw_dept)
-    if current_user.department and current_user.department != complaint_dept:
+    if not is_same_dept(current_user.department, complaint_dept):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only manage complaints assigned to your department",

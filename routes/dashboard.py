@@ -25,7 +25,10 @@ def dashboard_summary(
         if current_user.ward:
             tw = current_user.ward.strip().lower()
             query = query.filter(
-                func.trim(func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward))) == tw
+                or_(
+                    func.trim(func.coalesce(func.nullif(func.lower(Complaint.incident_ward), ''), func.lower(Complaint.ward))) == tw,
+                    func.trim(func.lower(Complaint.ward)) == tw
+                )
             )
         
         dept = current_user.department

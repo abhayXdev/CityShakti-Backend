@@ -353,13 +353,18 @@ def list_complaints(
     if target_ward:
         tw = target_ward.strip().lower()
         if out_of_bound:
+            # Out-of-Bound: Not in my ward (citizen or incident) but assigned to my department
             query = query.filter(
-                func.trim(func.lower(Complaint.ward)) == tw,
-                func.trim(func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward))) != tw
+                func.trim(func.lower(Complaint.ward)) != tw,
+                func.trim(func.coalesce(func.nullif(func.lower(Complaint.incident_ward), ''), func.lower(Complaint.ward))) != tw
             )
         else:
+            # Actionable: Either incident happened here OR reporter is from here
             query = query.filter(
-                func.trim(func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward))) == tw
+                or_(
+                    func.trim(func.coalesce(func.nullif(func.lower(Complaint.incident_ward), ''), func.lower(Complaint.ward))) == tw,
+                    func.trim(func.lower(Complaint.ward)) == tw
+                )
             )
     if priority is not None:
         query = query.filter(Complaint.priority == priority)

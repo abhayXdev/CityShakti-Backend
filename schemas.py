@@ -172,6 +172,7 @@ class DashboardSummary(BaseModel):
     in_progress_complaints: int
     resolved_complaints: int
     high_priority_complaints: int
+    escalated_complaints: int = 0
     avg_resolution_hours: Optional[float]
     avg_assignment_to_resolution_hours: Optional[float] = None
     ward_stats: List[WardStat] = Field(default_factory=list)

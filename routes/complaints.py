@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from fastapi import (APIRouter, BackgroundTasks, Depends, HTTPException, Query,
                      Request, status)
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, get_db
@@ -17,6 +17,7 @@ from schemas import (APIMessage, ComplaintAdminUpdate, ComplaintAssign,
                      ComplaintMergeRequest, ComplaintOut,
                      ComplaintProgressUpdateCreate, ComplaintProgressUpdateOut,
                      ComplaintStatusUpdate)
+from services import ai
 from services.ai import (CATEGORY_TO_DEPARTMENT, calculate_impact_score,
                          cosine_similarity, predict_category, predict_priority,
                          predict_resolution_deadline)
@@ -275,10 +276,11 @@ def create_complaint(
         actor=current_user.full_name,
         actor_id=current_user.id,
     )
+    db.commit()
     
-    # Send Automated Notifications
-    if current_user.phone:
-        send_sms(current_user.phone, "", event="registered", title=complaint.title)
+    # Send Automated Notifications (Disabled SMS only)
+    # if current_user.phone:
+    #     send_sms(current_user.phone, "", event="registered", title=complaint.title)
     send_email(
         current_user.email,
         "✅ Complaint Registered — JanSetu",
@@ -339,7 +341,7 @@ def list_complaints(
 
     if current_user.role == "citizen":
         query = query.filter(Complaint.citizen_id == current_user.id)
-
+    
     if not include_merged:
         query = query.filter(Complaint.is_merged.is_(False))
     if status:
@@ -349,28 +351,30 @@ def list_complaints(
         target_ward = current_user.ward
 
     if target_ward:
+        tw = target_ward.strip().lower()
         if out_of_bound:
             query = query.filter(
-                func.lower(Complaint.ward) == target_ward.lower(),
-                func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward)) != target_ward.lower()
+                func.trim(func.lower(Complaint.ward)) == tw,
+                func.trim(func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward))) != tw
             )
         else:
             query = query.filter(
-                func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward)) == target_ward.lower()
+                func.trim(func.coalesce(func.lower(Complaint.incident_ward), func.lower(Complaint.ward))) == tw
             )
     if priority is not None:
         query = query.filter(Complaint.priority == priority)
     if current_user.role == "officer":
         dept = current_user.department
         if dept:
-            # Fuzzy match in SQL for department: match exact or match where category/department-label matches
-            # Since the categorization logic sets assigned_department, we check that mostly.
-            # We use a broad ilike or exact check for the primary department name
-            clean_dept = re.sub(r'[^a-zA-Z0-9]', '%', dept) # fuzzy search pattern
-            query = query.filter(
-                (Complaint.assigned_department.ilike(f"%{dept}%")) | 
-                (Complaint.category.ilike(f"%{dept}%"))
-            )
+            # Fuzzy match: match where category/department-label matches
+            # Allow shorter words to catch standard departments
+            words = [w for w in re.split(r'[^a-zA-Z0-9]', dept) if len(w) >= 2]
+            if words:
+                conds = []
+                for w in words:
+                    conds.append(func.coalesce(Complaint.assigned_department, '').ilike(f"%{w}%"))
+                    conds.append(func.coalesce(Complaint.category, '').ilike(f"%{w}%"))
+                query = query.filter(or_(*conds))
 
     return query.order_by(Complaint.created_at.desc()).offset(offset).limit(limit).all()
 
@@ -550,8 +554,9 @@ def update_complaint_status(
             "Rejected": "⚠️ Complaint Re-escalated — JanSetu",
         }
         subj = subject_map.get(payload.status, f"Ticket Update: {payload.status} — JanSetu")
-        if citizen.phone:
-            send_sms(citizen.phone, "", event=evt, title=complaint.title)
+        # disabled SMS
+        # if citizen.phone:
+        #     send_sms(citizen.phone, "", event=evt, title=complaint.title)
         send_email(
             citizen.email, subj, "",
             event=evt, title=complaint.title, citizen_name=citizen.full_name
@@ -764,8 +769,8 @@ def close_complaint(
         actor_id=current_user.id,
     )
     
-    if current_user.phone:
-        send_sms(current_user.phone, "", event="closed", title=complaint.title)
+    # if current_user.phone:
+    #     send_sms(current_user.phone, "", event="closed", title=complaint.title)
     send_email(
         current_user.email, "🎉 Complaint Closed — JanSetu", "",
         event="closed", title=complaint.title, citizen_name=current_user.full_name
@@ -823,8 +828,8 @@ def re_escalate_complaint(
         actor_id=current_user.id,
     )
 
-    if current_user.phone:
-        send_sms(current_user.phone, f"CityShakti: ALERT - Your ticket '{complaint.title}' has been severely Re-escalated to Priority Level {new_priority}.")
+    # if current_user.phone:
+    #     send_sms(current_user.phone, f"CityShakti: ALERT - Your ticket '{complaint.title}' has been severely Re-escalated to Priority Level {new_priority}.")
     send_email(current_user.email, "Ticket Re-escalated", f"Your rejection for ticket '{complaint.title}' was received. The priority has been penalized and officers have been notified.")
 
     db.commit()

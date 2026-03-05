@@ -51,6 +51,9 @@ def on_startup():
     Automatically runs Alembic database migrations to ensure schema is up-to-date,
     and seeds a default 'sudo' administrator account for initial access.
     """
+    if os.getenv("TESTING") == "1":
+        logger.info("Skipping startup migrations and seeding in TEST mode.")
+        return
     import subprocess
     from security import hash_password
     from database import SessionLocal

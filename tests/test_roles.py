@@ -1,5 +1,4 @@
 
-
 def get_auth_token(client, email, password, role="citizen", full_name="User"):
     response = client.post(
         "/api/auth/register",
@@ -89,9 +88,9 @@ def test_admin_assignment_and_status(client):
     )
     complaint_id = resp.json()["id"]
 
-    # 2. Register an admin
+    # 2. Register an admin (SUDO)
     admin_token = get_auth_token(
-        client, "commissioner@test.com", "password", "admin", "Commissioner Sharma"
+        client, "commissioner@test.com", "password", "sudo", "Commissioner Sharma"
     )
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 

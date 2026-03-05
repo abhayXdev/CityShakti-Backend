@@ -411,9 +411,16 @@ def get_complaint(
 
 def is_same_dept(user_dept: Optional[str], comp_dept: str) -> bool:
     if not user_dept: return True
-    ud = re.sub(r'[^a-z0-9]', '', user_dept.lower())
-    cd = re.sub(r'[^a-z0-9]', '', comp_dept.lower())
-    return ud == cd or cd.replace('s', '') in ud or ud.replace('s', '') in cd
+    # Word-based fuzzy matching with prefix/substring support
+    words_user = [w for w in re.split(r'[^a-zA-Z0-9]', user_dept.lower()) if len(w) >= 2]
+    words_comp = [w for w in re.split(r'[^a-zA-Z0-9]', comp_dept.lower()) if len(w) >= 2]
+    
+    for wu in words_user:
+        for wc in words_comp:
+            # Match if one word is part of another (e.g., "Electric" in "Electricity")
+            if wu in wc or wc in wu:
+                return True
+    return False
 
 @router.patch("/{complaint_id}", response_model=ComplaintOut)
 def admin_update_complaint(

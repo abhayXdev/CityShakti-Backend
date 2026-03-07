@@ -255,10 +255,12 @@ def create_complaint(
         
         # Threshold for blocking submission and suggesting upvote
         if similarity >= DUPLICATE_THRESHOLD:
+            is_own_duplicate = candidate.citizen_id == current_user.id
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
-                    "message": "A potential duplicate complaint was found in your area.",
+                    "message": "A potential duplicate complaint was found in your area." if not is_own_duplicate else "You have already reported this identical problem.",
+                    "is_own_duplicate": is_own_duplicate,
                     "existing_complaint": {
                         "id": candidate.id,
                         "title": candidate.title,

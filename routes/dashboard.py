@@ -23,9 +23,9 @@ def dashboard_summary(
     
     if current_user.role == "officer":
         if current_user.ward:
-            tw = current_user.ward.strip().lower()
+            tw = current_user.ward.replace(' ', '').lower()
             query = query.filter(
-                func.trim(func.coalesce(func.nullif(func.lower(Complaint.incident_ward), ''), func.lower(Complaint.ward))) == tw
+                func.replace(func.coalesce(func.nullif(func.lower(Complaint.incident_ward), ''), func.lower(Complaint.ward)), ' ', '') == tw
             )
         
         dept = current_user.department

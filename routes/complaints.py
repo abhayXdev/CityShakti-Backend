@@ -308,8 +308,8 @@ def list_community_complaints(
     Unlike the main list endpoint, this does NOT filter by the current citizen's ID,
     allowing them to see and upvote other users' complaints in their community.
     """
-    user_ward = (current_user.ward or "").strip().lower()
-    query_ward = (ward or "").strip().lower()
+    user_ward = (current_user.ward or "").replace(' ', '').lower()
+    query_ward = (ward or "").replace(' ', '').lower()
 
     if current_user.role == "citizen" and user_ward and user_ward != query_ward:
         raise HTTPException(
@@ -351,16 +351,16 @@ def list_complaints(
         target_ward = current_user.ward
 
     if target_ward:
-        tw = target_ward.strip().lower()
+        tw = target_ward.replace(' ', '').lower()
         if out_of_bound:
             # Out-of-Bound: Not in my ward (incident) but assigned to my department
             query = query.filter(
-                func.trim(func.coalesce(func.nullif(func.lower(Complaint.incident_ward), ''), func.lower(Complaint.ward))) != tw
+                func.replace(func.coalesce(func.nullif(func.lower(Complaint.incident_ward), ''), func.lower(Complaint.ward)), ' ', '') != tw
             )
         else:
             # Actionable: incident happened here
             query = query.filter(
-                func.trim(func.coalesce(func.nullif(func.lower(Complaint.incident_ward), ''), func.lower(Complaint.ward))) == tw
+                func.replace(func.coalesce(func.nullif(func.lower(Complaint.incident_ward), ''), func.lower(Complaint.ward)), ' ', '') == tw
             )
     if priority is not None:
         query = query.filter(Complaint.priority == priority)
@@ -395,8 +395,8 @@ def get_complaint(
     if current_user.role == "citizen":
         # A citizen can view if they own it, OR if it's a public complaint in their ward
         if complaint.citizen_id != current_user.id:
-            user_ward = (current_user.ward or "").strip().lower()
-            comp_ward = (complaint.incident_ward or complaint.ward or "").strip().lower()
+            user_ward = (current_user.ward or "").replace(' ', '').lower()
+            comp_ward = (complaint.incident_ward or complaint.ward or "").replace(' ', '').lower()
             if not user_ward or comp_ward != user_ward:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -526,6 +526,15 @@ def update_complaint_status(
             detail="You can only manage complaints assigned to your department",
         )
 
+    if current_user.role == "officer":
+        user_ward = (current_user.ward or "").replace(' ', '').lower()
+        comp_ward = (complaint.incident_ward or complaint.ward or "").replace(' ', '').lower()
+        if user_ward and user_ward != comp_ward:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only manage complaints within your assigned ward.",
+            )
+
     old_status = complaint.status
     complaint.status = payload.status
     complaint.resolved_at = (
@@ -600,6 +609,15 @@ def add_progress_update(
             detail="You can only manage complaints assigned to your department",
         )
 
+    if current_user.role == "officer":
+        user_ward = (current_user.ward or "").replace(' ', '').lower()
+        comp_ward = (complaint.incident_ward or complaint.ward or "").replace(' ', '').lower()
+        if user_ward and user_ward != comp_ward:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only manage complaints within your assigned ward.",
+            )
+
     progress = ComplaintUpdate(
         complaint_id=complaint_id,
         phase=payload.phase,
@@ -640,8 +658,8 @@ def manual_merge_complaints(
             detail="Source or target complaint not found",
         )
 
-    source_ward = (source.ward or "").strip().lower()
-    target_ward = (target.ward or "").strip().lower()
+    source_ward = (source.ward or "").replace(' ', '').lower()
+    target_ward = (target.ward or "").replace(' ', '').lower()
     if source_ward != target_ward:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -683,8 +701,8 @@ def upvote_complaint(
             status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found"
         )
 
-    user_ward = (current_user.ward or "").strip().lower()
-    comp_ward = (complaint.ward or "").strip().lower()
+    user_ward = (current_user.ward or "").replace(' ', '').lower()
+    comp_ward = (complaint.ward or "").replace(' ', '').lower()
     if current_user.role == "citizen" and user_ward and user_ward != comp_ward:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

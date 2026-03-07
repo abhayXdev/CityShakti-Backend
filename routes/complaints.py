@@ -25,7 +25,7 @@ from services.notifications import send_email, send_sms
 
 router = APIRouter(prefix="/api/complaints", tags=["Complaints"])
 RESOLVED_STATUS = "Resolved"
-DUPLICATE_THRESHOLD = 0.75
+DUPLICATE_THRESHOLD = 0.80
 
 
 def add_activity(
@@ -254,7 +254,7 @@ def create_complaint(
         similarity = cosine_similarity(incoming_text, candidate_text)
         
         # Threshold for blocking submission and suggesting upvote
-        if similarity >= 0.8:
+        if similarity >= DUPLICATE_THRESHOLD:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
@@ -371,7 +371,7 @@ def list_complaints(
     if current_user.role == "citizen":
         query = query.filter(Complaint.citizen_id == current_user.id)
     
-    if not include_merged:
+    if not include_merged and current_user.role != "citizen":
         query = query.filter(Complaint.is_merged.is_(False))
     if status:
         query = query.filter(Complaint.status == status)
@@ -600,13 +600,21 @@ def update_complaint_status(
             "Rejected": "⚠️ Complaint Re-escalated — JanSetu",
         }
         subj = subject_map.get(payload.status, f"Ticket Update: {payload.status} — JanSetu")
-        # disabled SMS
-        # if citizen.phone:
-        #     send_sms(citizen.phone, "", event=evt, title=complaint.title)
+        
+        # Notify the primary reporter
         send_email(
             citizen.email, subj, "",
             event=evt, title=complaint.title, citizen_name=citizen.full_name
         )
+
+        # Notify all citizens who reported duplicate issues merged into this one
+        merged_complaints = db.query(Complaint).filter(Complaint.merged_into_id == complaint.id).all()
+        for mc in merged_complaints:
+            if mc.citizen and mc.citizen.email:
+                send_email(
+                    mc.citizen.email, subj, "",
+                    event=evt, title=mc.title, citizen_name=mc.citizen.full_name
+                )
         
     db.commit()
     db.refresh(complaint)

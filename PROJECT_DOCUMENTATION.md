@@ -56,21 +56,21 @@ This flowchart illustrates what happens from the moment a pothole is reported to
 
 ```mermaid
 flowchart TD
-    A[Citizen clicks 'Submit'] --> B[Geo: Extract GPS]
-    B --> C[Ola: Reverse Geocode]
-    C --> D[Map: Extract 6-Digit PIN]
-    D --> E[AI: Predict Deadline]
-    E --> F[DB: Save Complaint]
+    A["Citizen Clicks Submit"] --> B["Geo: Extract GPS"]
+    B --> C["Ola: Reverse Geocode"]
+    C --> D["Map: 6-Digit PIN"]
+    D --> E["AI: Predict Deadline"]
+    E --> F["DB: Save Complaint"]
     
-    F --> G[Pending: Routed to Officer]
-    G --> H[InProgress: Officer Accepts]
-    H --> I[Resolved: Officer Fixes]
+    F --> G["Pending: Routed to Officer"]
+    G --> H["InProgress: Officer Accepts"]
+    H --> I["Resolved: Officer Fixes"]
     
-    I --> J{Citizen Verifies}
-    J -->|Accept| K[Closed]
-    J -->|Reject| L[Escalated]
+    I --> J{"Citizen Verifies"}
+    J -- "Accept" --> K["Closed"]
+    J -- "Reject" --> L["Escalated"]
     
-    G --> M[Escalated: SLA Breach]
+    G --> M["Escalated: SLA Breach"]
     H --> M
 ```
 **Explanation of Edge Cases:**
@@ -111,23 +111,23 @@ How the backend calculates deadlines, and how officers communicate updates to th
 
 ```mermaid
 flowchart TD
-    A[Citizen Submits Issue] --> B{AI SLA Router}
-    B -->|Urgent: Water Pipe| C[SLA = 24 Hours]
-    B -->|Medium: Pothole| D[SLA = 3 Days]
-    B -->|Low: Park Cleanup| E[SLA = 7 Days]
+    A["Citizen Submits Issue"] --> B{"AI SLA Router"}
+    B -- "Urgent: Water Pipe" --> C["SLA: 24 Hours"]
+    B -- "Medium: Pothole" --> D["SLA: 3 Days"]
+    B -- "Low: Park Cleanup" --> E["SLA: 7 Days"]
     
-    C --> F[Officer Dashboard]
+    C --> F["Officer Dashboard"]
     D --> F
     E --> F
     
-    F --> G[Officer Begins Work]
-    G --> H[Uploads Before Photo Update]
-    H --> I[Uploads After Photo Update]
-    I --> J[Officer Marks Resolved]
-    J -->|UI LOCK| K[Wait for Citizen Verification]
-    K --> L{Citizen Response}
-    L -->|Accept| M[Status: Closed]
-    L -->|Reject| N[Status: In-Progress (Buttons Re-enabled)]
+    F --> G["Officer Begins Work"]
+    G --> H["Before Photo Update"]
+    H --> I["After Photo Update"]
+    I --> J["Officer Marks Resolved"]
+    J -- "UI LOCK" --> K["Wait for Verification"]
+    K --> L{"Citizen Response"}
+    L -- "Accept" --> M["Status: Closed"]
+    L -- "Reject" --> N["Status: In-Progress"]
 ```
 
 ### E. Public Transparency & Community Engagement Flow
@@ -135,17 +135,17 @@ Citizens don't need to create redundant complaints. The system offers a communit
 
 ```mermaid
 flowchart LR
-    A[New Pothole Complaint] --> B[Appears on Regional Map as Red Dot]
-    B --> C[Citizen Views Map]
-    C --> D{Is it in my Ward?}
-    D -->|Yes| E["Visible Pin with 'Support' Button"]
-    D -->|No| F[Filtered Out (Citizen Lock)]
-    E --> G[Clicks "Support in Community"]
-    G --> H[Deep Link Redirection to Community Tab]
-    H --> I[Auto-Opens Complaint Detail Modal]
-    I --> J[Clicks Upvote]
-    J --> K[Backend Increments Priority Score]
-    K --> L[Pushes Issue to Top of Officer's Dashboard]
+    A["New Pothole"] --> B["Regional Map (Red Dot)"]
+    B --> C["Citizen Views Map"]
+    C --> D{"In My Ward?"}
+    D -- "Yes" --> E["Visible Pin with Support Button"]
+    D -- "No" --> F["Filtered Out"]
+    E --> G["Click Support in Community"]
+    G --> H["Deep Link to Community"]
+    H --> I["Auto-Open Ticket Detail"]
+    I --> J["Click Upvote"]
+    J --> K["Priority Score Increments"]
+    K --> L["Pushes to Top of Queue"]
 ```
 
 ### F. Evidence Image Upload Sequence (ImgBB)
@@ -173,32 +173,15 @@ How the "Sudo" and "Officer" dashboards render real-time statistics without cras
 
 ```mermaid
 flowchart TD
-    A[Frontend Dashboard Mounts] --> B[GET /dashboard/stats]
-    B --> C{FastAPI Dependency Check}
-    C -->|Unauthorized| D[Return 401/403]
-    C -->|Authorized| E[SQLAlchemy Aggregation]
+    A["Frontend Mounts"] --> B["GET /dashboard/stats"]
+    B --> C{"FastAPI Guard"}
+    C -- "Unauthorized" --> D["HTTP 401/403"]
+    C -- "Authorized" --> E["SQLAlchemy Aggregation"]
     
-    E --> F["db.query(func.count(Complaint.id)).group_by(status)"]
-    F --> G[JSON Payload Generated]
-    G --> H[Frontend Recharts Library]
-    H --> I[SVG Bar/Pie Charts Rendered]
-```
-
-### I. Elastic Bounding Box Logic (Spatial Restraint)
-To prevent Citizens and Officers from wandering across the entire map of India, the system calculates a dynamic boundary based on the complaints within their jurisdiction.
-
-```mermaid
-graph TD
-    A[Load Complaints for Ward] --> B[Generate LngLatBounds Object]
-    B --> C[Calculate latDiff & lngDiff]
-    C --> D[Apply 50% Elastic Buffer]
-    D --> E[map.setMaxBounds(elasticBounds)]
-    E --> F[Restrict User to Ward View]
-```
-**Technical Implementation:**
-- **Buffer**: A 50% padding is added to the SW and NE coordinates of the ward's complaints.
-- **Fallthrough**: If no complaints exist, the map defaults to the center of Delhi with a broad view until reports are filed.
-- **Safety**: Prevents information leakage from other wards to unauthorized users.
+    E --> F["SQL: Group by Status"]
+    F --> G["Generate JSON Payload"]
+    G --> H["Frontend Recharts Library"]
+    H --> I["SVG Visuals Rendered"]
 ```
 
 ### H. Global Error Handling & Rate Limiting Architecture
@@ -206,21 +189,32 @@ The system is protected globally by middleware and exception handlers to ensure 
 
 ```mermaid
 flowchart LR
-    A[Malicious User] --> B[Spams /auth/login 100 times]
-    B --> C{SlowAPI Rate Limiter Middleware}
-    C -->|Under Limit| D[Process Request]
-    C -->|Over Limit| E[Raise RateLimitExceeded Exception]
-    E --> F[FastAPI Exception Handler Intercepts]
-    F --> G[Returns HTTP 429 Too Many Requests]
+    A["Malicious User"] -- "Spam Login" --> B["SlowAPI Middleware"]
+    B -- "Under Limit" --> C["Process Request"]
+    B -- "Over Limit" --> D["HTTP 429 Error"]
     
-    H[Frontend Sends Bad Data] --> I{Pydantic Schema Validation}
-    I -->|Missing Email| J[Raise RequestValidationError]
-    J --> K[Returns HTTP 422 Unprocessable Entity]
+    E["Bad Payload"] --> F["Pydantic Validation"]
+    F -- "Missing Data" --> G["HTTP 422 Error"]
     
-    L[Database Connectivity Fails] --> M{SQLAlchemyError Handler}
-    M --> N[Log to Console]
-    M --> O[Returns HTTP 500 Internal Server Error]
+    H["DB Connection Fail"] --> I["SQLAlchemy Error Handler"]
+    I --> J["HTTP 500 Error"]
 ```
+
+### I. Elastic Bounding Box Logic (Spatial Restraint)
+To prevent Citizens and Officers from wandering across the entire map of India, the system calculates a dynamic boundary based on the complaints within their jurisdiction.
+
+```mermaid
+flowchart TD
+    A["Load Ward Complaints"] --> B["Generate LngLatBounds"]
+    B --> C["Calc latDiff & lngDiff"]
+    C --> D["Apply 50% Elastic Buffer"]
+    D --> E["map.setMaxBounds()"]
+    E --> F["Restrict to Ward View"]
+```
+**Technical Implementation:**
+- **Buffer**: A 50% padding is added to the SW and NE coordinates of the ward's complaints.
+- **Fallthrough**: If no complaints exist, the map defaults to the center of Delhi with a broad view until reports are filed.
+- **Safety**: Prevents information leakage from other wards to unauthorized users.
 
 ---
 

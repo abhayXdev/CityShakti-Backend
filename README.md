@@ -20,6 +20,7 @@ This application is built using **FastAPI**, **PostgreSQL**, **SQLAlchemy**, and
 *   **ORM:** SQLAlchemy 
 *   **Migrations:** Alembic
 *   **Security:** OAuth2 (JWT), bcrypt hashing, SlowAPI rate limiting
+*   **Maps & Geolocation:** Ola Maps API, MapLibre GL JS
 *   **Deployment:** Docker & Docker Compose
 
 ## 🚀 Quick Start (Deployment)

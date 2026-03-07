@@ -13,9 +13,12 @@ CityShakti operates on a decoupled architecture, separating the client-side rend
 
 ## 2. Third-Party APIs & Services
 The platform offloads specific complex workloads to specialized third-party APIs:
+*   **Ola Maps API:** The primary engine for high-precision regional intelligence. Replaced the legacy OpenStreetMap (Nominatim) implementation to achieve 100% accuracy for 6-digit Indian PIN codes.
+    *   **Reverse Geocoding:** Converts GPS coordinates into strict `incident_ward` values using `api.olamaps.io/places/v1/reverse-geocode`.
+    *   **Vector Tiles:** Provides the interactive map layer for the dashboard via MapLibre GL JS, authenticated via dynamic `transformRequest` headers and the `NEXT_PUBLIC_OLA_MAPS_API_KEY`.
 *   **Brevo (formerly Sendinblue) SMTP API:** Used exclusively for Identity Verification. When a user registers or logs in, the backend securely communicates with `api.brevo.com` using the `BREVO_API_KEY` to dispatch 6-digit One-Time Passcodes (OTPs) to the user's email account. 
 *   **ImgBB API:** Used for Evidence Storage. Because hosting base64 images inside a PostgreSQL database is highly inefficient, the frontend intercepts image uploads from the citizen's phone/camera, sends the raw file to `api.imgbb.com`, receives a public `photo_url`, and only saves that short URL string to our database.
-*   **HTML5 Geolocation API:** The frontend heavily relies on native browser GPS sensors to extract `latitude` and `longitude` during complaint submission, enabling Smart PinCode mapping.
+*   **HTML5 Geolocation API:** The frontend heavily relies on native browser GPS sensors to extract `latitude` and `longitude` during complaint submission, enabling Ola Maps PIN code mapping.
 
 ---
 
@@ -57,7 +60,8 @@ stateDiagram-v2
     
     state Submitted {
         direction LR
-        Geo[Extract GPS] --> Map[Map to PIN Code]
+        Geo[Extract GPS] --> Ola[Ola Maps Reverse Geocode]
+        Ola --> Map[Extract 6-Digit PIN]
         Map --> ML[AI Predicts Deadline]
         ML --> DB[Save to Database]
     }
@@ -126,7 +130,11 @@ flowchart TD
     G --> H[Uploads Before Photo Update]
     H --> I[Uploads After Photo Update]
     I --> J[Officer Marks Resolved]
+    Note right of J: UI LOCK: Buttons disabled to prevent duplicate updates
     J --> K[Wait for Citizen Verification]
+    K --> L{Citizen Response}
+    L -->|Accept| M[Status: Closed]
+    L -->|Reject| N[Status: In-Progress (Buttons Re-enabled)]
 ```
 
 ### E. Public Transparency & Community Engagement Flow
@@ -134,14 +142,17 @@ Citizens don't need to create redundant complaints. The system offers a communit
 
 ```mermaid
 flowchart LR
-    A[New Pothole Complaint] --> B[Appears on Community Feed scoped by PIN Code]
-    B --> C[Neighbor Logs In]
-    C --> D{Is it my complaint?}
-    D -->|Yes| E[Can Edit/Verify/Close]
-    D -->|No| F[Can View Evidence Modal]
-    F --> G[Clicks Upvote]
-    G --> H[Backend Increments Priority Score]
-    H --> I[Pushes Issue to Top of Officer's Dashboard]
+    A[New Pothole Complaint] --> B[Appears on Regional Map as Red Dot]
+    B --> C[Citizen Views Map]
+    C --> D{Is it in my Ward?}
+    D -->|Yes| E[Visible Pin with "Support" Button]
+    D -->|No| F[Filtered Out (Citizen Lock)]
+    E --> G[Clicks "Support in Community"]
+    G --> H[Deep Link Redirection to Community Tab]
+    H --> I[Auto-Opens Complaint Detail Modal]
+    I --> J[Clicks Upvote]
+    J --> K[Backend Increments Priority Score]
+    K --> L[Pushes Issue to Top of Officer's Dashboard]
 ```
 
 ### F. Evidence Image Upload Sequence (ImgBB)
@@ -178,6 +189,22 @@ flowchart TD
     F --> G[JSON Payload Generated]
     G --> H[Frontend Recharts Library]
     H --> I[SVG Bar/Pie Charts Rendered]
+
+### I. Elastic Bounding Box Logic (Spatial Restraint)
+To prevent Citizens and Officers from wandering across the entire map of India, the system calculates a dynamic boundary based on the complaints within their jurisdiction.
+
+```mermaid
+graph TD
+    A[Load Complaints for Ward] --> B[Generate LngLatBounds Object]
+    B --> C[Calculate latDiff & lngDiff]
+    C --> D[Apply 50% Elastic Buffer]
+    D --> E[map.setMaxBounds(elasticBounds)]
+    E --> F[Restrict User to Ward View]
+```
+**Technical Implementation:**
+- **Buffer**: A 50% padding is added to the SW and NE coordinates of the ward's complaints.
+- **Fallthrough**: If no complaints exist, the map defaults to the center of Delhi with a broad view until reports are filed.
+- **Safety**: Prevents information leakage from other wards to unauthorized users.
 ```
 
 ### H. Global Error Handling & Rate Limiting Architecture
@@ -207,8 +234,11 @@ flowchart LR
 The entire user interface is built using Next.js 13+ (App Router), React, Tailwind CSS, and Shadcn UI components.
 
 ### Core Configuration
-*   **`frontend/package.json`**: Lists all npm dependencies (react, react-dom, tailwindcss, lucide-react for icons, date-fns for time manipulation, recharts for data visualizations). Contains the build scripts (`npm run dev`, `npm run build`).
-*   **`frontend/tailwind.config.js` & `postcss.config.js`**: Controls the design system. It maps all the custom colors (Primary, Destructive, Success, Warning) to CSS variables so the whole app respects Light/Dark mode natively.
+*   **`frontend/package.json`**: Lists all npm dependencies (`maplibre-gl` for maps, `lucide-react` for icons, `date-fns` for time, `recharts` for charts).
+*   **`frontend/.env.local`**: Stores critical integration keys:
+    *   `NEXT_PUBLIC_OLA_MAPS_API_KEY`: Authenticates Tile & Geocoding requests.
+    *   `NEXT_PUBLIC_API_BASE_URL`: Defines the Backend endpoint (Cloud or Localhost).
+*   **`frontend/tailwind.config.js`**: Controls the professional design system, including custom color tokens (`chart-1` through `chart-5`).
 
 ### The App Router (`/app`)
 *   **`frontend/app/layout.tsx`**: The main HTML wrapper. It contains the `<head>` tags, imports the global CSS, and wraps the entire application in the `ThemeProvider` (for dark mode) and `AppProvider` (for global React state).
@@ -223,11 +253,18 @@ The entire user interface is built using Next.js 13+ (App Router), React, Tailwi
 ### The UI Components (`/components`)
 *   **`frontend/components/dashboard-layout.tsx`**: The structural shell of the logged-in app. It renders the top navigation bar, the sidebar menu, the user profile dropdown, and the "Log Out" button.
 *   **`frontend/components/login-page.tsx` & `register-page.tsx`**: The authentication forms. They handle user input, form validation, toggling loading spinners, executing the OTP email request, and finally catching the JWT token to log the user in.
-*   **`frontend/components/dashboard-overview.tsx`**: The largest file in the frontend. 
-    *   **Logic:** It reads the `user.role`. If `citizen`, it shows a form to submit complaints. If `officer`, it shows a table of their assigned tasks. If `sudo`, it shows the master control panel.
-    *   **Features:** Contains the Recharts data visualizations showing 14-day trends. Handles the HTML5 Geolocation API prompt. Contains the ImgBB fetch API upload call logic for images. Contains the new Fullscreen Image Viewer Modal and the Date-Fns SLA Deadline tracker.
-*   **`frontend/components/community-view.tsx`**: A public feed that fetches all complaints in the current PIN code. It allows citizens to view their neighbors' issues and click an "Upvote" button, which fires an API call to increase the priority of that issue.
-*   **`frontend/components/geo-map.tsx`**: Uses Leaflet/React-Leaflet to render a visual map, placing a red pin at the specific latitude/longitude recorded when a complaint was made.
+*   **`frontend/components/map-view.tsx`**: The interactive visual command center.
+    *   **Engine**: Built on MapLibre GL JS with Ola Maps Vector Tiles.
+    *   **Elastic Bounding Box**: Automatically restricts Citizens and Officers to their own ward with a dynamic 50% buffer, preventing "map wandering" while ensuring all local issues are visible.
+    *   **Deep Linking**: Features a "Support in Community" button that uses global React context to redirect users to the Community tab and auto-open the complaint for upvoting.
+    *   **Strict Filtering**: Citizens are strictly limited to seeing "red dots" only from their own registered PIN code region.
+*   **`frontend/components/community-view.tsx`**: A public feed that fetches all complaints in the current PIN code. It implements an auto-open listener for deep-linked complaints from the Map.
+*   **`frontend/components/dashboard-overview.tsx`**: The primary operational dashboard.
+    *   **Logic:** Dynamically renders UI based on `user.role` (Citizen/Officer/Sudo).
+    *   **Redundancy Fix**: Implemented `isActionPending` state logic. When an officer clicks "Mark Resolved", all action buttons enter a `disabled` state and text changes to "Processing..." until the API response returns and the local state is synchronized.
+    *   **Administrator Controls**: Features a "Dept/Ward Match" security check. An officer can *view* any public report, but can only *modify* (Update/Resolve) a report if their `user.department` matches the complaint's department AND their `user.ward` matches the incident location.
+    *   **Visual Feedback**: Integrated `uploadingUpdateImage` spinner and custom `Badge` colors for "Escalated" status (pulsing red).
+    *   **Role Badges**: Logic fixed to correctly display "Officer Access" badges in the global header, ensuring clear session visibility.
 *   **`frontend/components/officer-management.tsx`**: A Sudo-Admin strictly protected view. Renders a table of pending Government Officer accounts. Sudo admins click "Approve" (which flips `is_active=True` in the DB) or "Suspend".
 *   **`frontend/components/ui/*`**: A folder containing 40+ atomic, reusable UI components (Buttons, Inputs, Dialogs, Badges, Tabs, Skeleton loaders). These are generated by Shadcn UI and ensure the application always looks professional and accessible (WAI-ARIA compliant).
 

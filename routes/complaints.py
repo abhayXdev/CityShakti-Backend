@@ -239,6 +239,35 @@ def create_complaint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("citizen", "officer", "sudo")),
 ):
+    # Synchronous Duplicate Check (Proactive Prevention)
+    # Check for existing complaints in the same ward with high similarity
+    query_ward = (payload.ward or "").replace(' ', '').lower()
+    candidates = db.query(Complaint).filter(
+        func.replace(func.lower(Complaint.ward), ' ', '') == query_ward,
+        Complaint.is_merged.is_(False),
+        Complaint.status.in_(["Submitted", "Assigned", "In Progress"])
+    ).all()
+
+    incoming_text = f"{payload.title} {payload.description}"
+    for candidate in candidates:
+        candidate_text = f"{candidate.title} {candidate.description}"
+        similarity = cosine_similarity(incoming_text, candidate_text)
+        
+        # Threshold for blocking submission and suggesting upvote
+        if similarity >= 0.8:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": "A potential duplicate complaint was found in your area.",
+                    "existing_complaint": {
+                        "id": candidate.id,
+                        "title": candidate.title,
+                        "status": candidate.status,
+                        "similarity": round(similarity, 2)
+                    }
+                }
+            )
+
     # Intelligent Machine Learning Predicted Deadline
     predicted_hours = predict_resolution_deadline(
         db, category=payload.category, ward=payload.ward, priority=payload.priority

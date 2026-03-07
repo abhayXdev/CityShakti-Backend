@@ -15,6 +15,7 @@ CityShakti operates on a decoupled architecture, separating the client-side rend
 The platform offloads specific complex workloads to specialized third-party APIs:
 *   **Ola Maps API:** The primary engine for high-precision regional intelligence. Replaced the legacy OpenStreetMap (Nominatim) implementation to achieve 100% accuracy for 6-digit Indian PIN codes.
     *   **Reverse Geocoding:** Converts GPS coordinates into strict `incident_ward` values using `api.olamaps.io/places/v1/reverse-geocode`.
+    *   **Intelligent PIN Snapping:** Accuracy optimization implemented in `frontend/lib/pincode.ts`. If multiple PIN codes are detected (near boundaries), the system cross-references them with the user's registered home ward and automatically "snaps" to it if found, ensuring 100% jurisdictional accuracy without manual entry.
     *   **Vector Tiles:** Provides the interactive map layer for the dashboard via MapLibre GL JS, authenticated via dynamic `transformRequest` headers and the `NEXT_PUBLIC_OLA_MAPS_API_KEY`.
 *   **Brevo (formerly Sendinblue) SMTP API:** Used exclusively for Identity Verification. When a user registers or logs in, the backend securely communicates with `api.brevo.com` using the `BREVO_API_KEY` to dispatch 6-digit One-Time Passcodes (OTPs) to the user's email account. 
 *   **ImgBB API:** Used for Evidence Storage. Because hosting base64 images inside a PostgreSQL database is highly inefficient, the frontend intercepts image uploads from the citizen's phone/camera, sends the raw file to `api.imgbb.com`, receives a public `photo_url`, and only saves that short URL string to our database.
@@ -251,7 +252,8 @@ The entire user interface is built using Next.js 13+ (App Router), React, Tailwi
 
 ### The React Context & Logic (`/lib`)
 *   **`frontend/lib/app-context.tsx`**: A massive React `createContext` wrapper. It holds global state (`user`, `complaints`, `theme`). It exposes a custom hook `useApp()`. This ensures we don't have to pass "user={user}" down a 20-component deep prop-chain.
-*   **`frontend/lib/api.ts`**: The bridge to the backend. It contains dozens of `fetch()` functions (`loginApi`, `registerApi`, `getComplaintDetailApi`). It reads the `NEXT_PUBLIC_API_URL` environment variable (pointing to Render in production) and transforms the JSON responses into strictly typed TypeScript objects.
+*   **`frontend/lib/api.ts`**: The bridge to the backend. It contains dozens of `fetch()` functions (`loginApi`, `registerApi`, `getComplaintDetailApi`). It reads the `NEXT_PUBLIC_API_URL` environment variable (pointing to Render in production).
+    *   **Visibility Logic**: Modified to ensure that even if a complaint is marked as "merged," it remains visible to its original author in the citizen dashboard, preventing "phantom" or "disappearing" tickets.
 *   **`frontend/lib/data.ts`**: Contains all the TypeScript interfaces (`type Complaint`, `type User`). Defines exactly what properties exist on a complaint object (e.g., `expectedResolutionDate`, `photoUrl`).
 *   **`frontend/lib/utils.ts`**: Contains the `cn()` helper function which merges Tailwind classes dynamically using `clsx` and `tailwind-merge` (preventing CSS conflicts).
 
@@ -315,6 +317,7 @@ The whole API is built on FastAPI (modern Python 3.10+ ASGI framework) aiming fo
     *   `POST /`: Takes a citizen's complaint form payload, triggers the AI in `services/ai` to assign a deadline, attaches the citizen's ID via the JWT dependency, and writes it to DB.
     *   `GET /`: Fetches lists of complaints. Dynamically filters the SQL query depending on if the requester is an Officer (only gets their PIN code) or Citizen (gets their own list). Include `.limit()` and `.offset()` for frontend pagination.
     *   `PUT /{id}/status`: Called by Officers to change the status (e.g., "Pending" -> "Resolved"). Logs an entry to `ComplaintActivity`.
+    *   **Unified Multi-Citizen Notifications**: When an officer resolves or rejects a primary complaint, the router in `update_compl_status` queries all tickets merged into that ID. It automatically dispatches update notifications to **every reporter** involved, ensuring total transparency and cross-departmental accountability.
     *   **Synchronous Duplicate Detection**: Modified `POST /` to include a pre-save check. It queries all active, non-merged complaints in the target ward and runs a `cosine_similarity` check. If a match exceeds 0.8, it raises a `HTTP 409 CONFLICT`.
     *   **Space-Insensitive Ward Filtering**: All ward comparisons (in SQL and Python) now utilize `.replace(' ', '')` and `func.replace(field, ' ', '')`. This ensures that `208 007` and `208007` are treated as the same region, preventing jurisdictional bypasses.
     *   **Jurisdictional Enforcement**: Strict 403 Forbidden checks implemented for status updates. Officers can only modify tickets where their assigned ward matches the incident ward.

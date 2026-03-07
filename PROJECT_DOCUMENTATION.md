@@ -55,29 +55,23 @@ sequenceDiagram
 This flowchart illustrates what happens from the moment a pothole is reported to the moment it is fixed.
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Submitted : Citizen clicks "Submit Complaint"
+flowchart TD
+    A[Citizen clicks 'Submit'] --> B[Geo: Extract GPS]
+    B --> C[Ola: Reverse Geocode]
+    C --> D[Map: Extract 6-Digit PIN]
+    D --> E[AI: Predict Deadline]
+    E --> F[DB: Save Complaint]
     
-    state Submitted {
-        direction LR
-        Geo[Extract GPS] --> Ola[Ola Maps Reverse Geocode]
-        Ola --> Map[Extract 6-Digit PIN]
-        Map --> ML[AI Predicts Deadline]
-        ML --> DB[Save to Database]
-    }
+    F --> G[Pending: Routed to Officer]
+    G --> H[InProgress: Officer Accepts]
+    H --> I[Resolved: Officer Fixes]
     
-    Submitted --> Pending : Routed to Officer Dashboard (matching Dept & PIN)
+    I --> J{Citizen Verifies}
+    J -->|Accept| K[Closed]
+    J -->|Reject| L[Escalated]
     
-    Pending --> InProgress : Officer clicks "Mark In-Progress"
-    InProgress --> Resolved : Officer clicks "Mark Resolved"
-    
-    Resolved --> Closed : Citizen Verifies & Approves the Fix
-    Resolved --> Escalated : Citizen Rejects the Fix (Penalizes Officer)
-    
-    Pending --> Escalated : System Clock breaches SLA Deadline
-    InProgress --> Escalated : System Clock breaches SLA Deadline
-    
-    Closed --> [*]
+    G --> M[Escalated: SLA Breach]
+    H --> M
 ```
 **Explanation of Edge Cases:**
 - **Citizen Rejection:** If an officer marks an issue "Resolved" but the pothole is still there, the citizen presses `Reject Resolution`. The status becomes `Escalated`, and the department's metrics are penalized.
@@ -130,8 +124,7 @@ flowchart TD
     G --> H[Uploads Before Photo Update]
     H --> I[Uploads After Photo Update]
     I --> J[Officer Marks Resolved]
-    Note right of J: UI LOCK: Buttons disabled to prevent duplicate updates
-    J --> K[Wait for Citizen Verification]
+    J -->|UI LOCK| K[Wait for Citizen Verification]
     K --> L{Citizen Response}
     L -->|Accept| M[Status: Closed]
     L -->|Reject| N[Status: In-Progress (Buttons Re-enabled)]
@@ -145,7 +138,7 @@ flowchart LR
     A[New Pothole Complaint] --> B[Appears on Regional Map as Red Dot]
     B --> C[Citizen Views Map]
     C --> D{Is it in my Ward?}
-    D -->|Yes| E[Visible Pin with "Support" Button]
+    D -->|Yes| E["Visible Pin with 'Support' Button"]
     D -->|No| F[Filtered Out (Citizen Lock)]
     E --> G[Clicks "Support in Community"]
     G --> H[Deep Link Redirection to Community Tab]
@@ -189,6 +182,7 @@ flowchart TD
     F --> G[JSON Payload Generated]
     G --> H[Frontend Recharts Library]
     H --> I[SVG Bar/Pie Charts Rendered]
+```
 
 ### I. Elastic Bounding Box Logic (Spatial Restraint)
 To prevent Citizens and Officers from wandering across the entire map of India, the system calculates a dynamic boundary based on the complaints within their jurisdiction.

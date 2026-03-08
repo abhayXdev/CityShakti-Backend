@@ -1,6 +1,6 @@
 # JanSetu: Comprehensive System & Codebase Documentation
 
-This document serves as the absolute, definitive guide to the **JanSetu** Smart Civic Monitoring System. It leaves nothing out. It covers every platform, every third-party API, the complete system architecture, flowcharts for every situation, and a line-by-line / file-by-file explanation of both the Backend and Frontend codebases.
+This document serves as the absolute, definitive guide to the **JanSetu** Smart Civic Monitoring System. It covers every platform, the complete system architecture, flowcharts for every situation, and a line-by-line / file-by-file explanation of both the Backend and Frontend codebases.
 
 ---
 
@@ -15,11 +15,21 @@ JanSetu operates on a decoupled architecture, separating the client-side renderi
 The platform offloads specific complex workloads to specialized third-party APIs:
 *   **Ola Maps API:** The primary engine for high-precision regional intelligence. Replaced the legacy OpenStreetMap (Nominatim) implementation to achieve 100% accuracy for 6-digit Indian PIN codes.
     *   **Reverse Geocoding:** Converts GPS coordinates into strict `incident_ward` values using `api.olamaps.io/places/v1/reverse-geocode`.
-    *   **Intelligent PIN Snapping:** Accuracy optimization implemented in `frontend/lib/pincode.ts`. If multiple PIN codes are detected (near boundaries), the system cross-references them with the user's registered home ward and automatically "snaps" to it if found, ensuring 100% jurisdictional accuracy without manual entry.
+    *   **Intelligent PIN Snapping:** Accuracy optimization implemented in `frontend/lib/pincode.ts`. If multiple PIN codes are detected (near boundaries), the system cross-references them with the user's registered home ward and automatically "snaps" to it if found.
     *   **Vector Tiles:** Provides the interactive map layer for the dashboard via MapLibre GL JS, authenticated via dynamic `transformRequest` headers and the `NEXT_PUBLIC_OLA_MAPS_API_KEY`.
-*   **Brevo (formerly Sendinblue) SMTP API:** Used exclusively for Identity Verification. When a user registers or logs in, the backend securely communicates with `api.brevo.com` using the `BREVO_API_KEY` to dispatch 6-digit One-Time Passcodes (OTPs) to the user's email account. 
-*   **ImgBB API:** Used for Evidence Storage. Because hosting base64 images inside a PostgreSQL database is highly inefficient, the frontend intercepts image uploads from the citizen's phone/camera, sends the raw file to `api.imgbb.com`, receives a public `photo_url`, and only saves that short URL string to our database.
-*   **HTML5 Geolocation API:** The frontend heavily relies on native browser GPS sensors to extract `latitude` and `longitude` during complaint submission, enabling Ola Maps PIN code mapping.
+*   **Brevo (formerly Sendinblue) SMTP API:** Used for Identity Verification. When a user registers or logs in, the backend securely communicates with `api.brevo.com` to dispatch 6-digit One-Time Passcodes (OTPs). 
+*   **ImgBB API:** Used for Evidence Storage. The frontend intercepts image uploads, sends the raw file to `api.imgbb.com`, receives a public `photo_url`, and only saves that short URL string to our database.
+*   **HTML5 Geolocation API:** The frontend relies on native browser GPS sensors during complaint submission.
+*   **Canvas-Confetti:** Used for interactive user feedback (celebratory confetti) upon successful complaint submission and community upvotes.
+
+---
+
+## 3. The "Royal Indian" Design System
+In March 2026, JanSetu underwent a major UI transformation to align with a premium, culturally-inspired aesthetic:
+*   **Glassmorphism Architecture:** The entire UI utilizes a `backdrop-blur-2xl` glass effect with translucent borders and soft shadows, creating a sophisticated "floating" feel.
+*   **Cultural Motifs (Rangoli):** An SVG-based `RANGOLI_PATTERN` is integrated into the background of all major dashboard components (Sidebar, Analytics Cards, Community Cards), providing a distinct Indian identity.
+*   **JanSetu "Saffron" Palette:** A curated color system using `#FF9933` (Saffron), `#F4B400` (Gold), and `#2B6CEE` (Blue) to represent the brand's premium and authoritative nature.
+*   **Responsive Glass Cards:** The legacy table layouts were replaced with interactive cards that provide a superior experience on mobile devices and touch screens.
 
 ---
 

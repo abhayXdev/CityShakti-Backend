@@ -1,8 +1,6 @@
 # JanSetu: Smart Public Service CRM - Backend
 
-Welcome to the backend infrastructure for **JanSetu**, an enterprise-grade municipal ecosystem designed to revolutionize how citizens report civic issues and how governments resolve them.
-
-This application is built using **FastAPI**, **PostgreSQL**, **SQLAlchemy**, and **Machine Learning** auto-categorization engines.
+Welcome to **JanSetu**, an enterprise-grade municipal ecosystem designed to revolutionize how citizens report civic issues and how governments resolve them with transparency and speed.
 
 ---
 

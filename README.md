@@ -1,6 +1,6 @@
-# CityShakti: Smart Public Service CRM - Backend
+# JanSetu: Smart Public Service CRM - Backend
 
-Welcome to the backend infrastructure for **CityShakti**, an enterprise-grade municipal ecosystem designed to revolutionize how citizens report civic issues and how governments resolve them.
+Welcome to the backend infrastructure for **JanSetu**, an enterprise-grade municipal ecosystem designed to revolutionize how citizens report civic issues and how governments resolve them.
 
 This application is built using **FastAPI**, **PostgreSQL**, **SQLAlchemy**, and **Machine Learning** auto-categorization engines.
 

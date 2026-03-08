@@ -1,11 +1,11 @@
-# CityShakti: Comprehensive System & Codebase Documentation
+# JanSetu: Comprehensive System & Codebase Documentation
 
-This document serves as the absolute, definitive guide to the **CityShakti** Smart Civic Monitoring System. It leaves nothing out. It covers every platform, every third-party API, the complete system architecture, flowcharts for every situation, and a line-by-line / file-by-file explanation of both the Backend and Frontend codebases.
+This document serves as the absolute, definitive guide to the **JanSetu** Smart Civic Monitoring System. It leaves nothing out. It covers every platform, every third-party API, the complete system architecture, flowcharts for every situation, and a line-by-line / file-by-file explanation of both the Backend and Frontend codebases.
 
 ---
 
 ## 1. Hosting Platforms & Infrastructure
-CityShakti operates on a decoupled architecture, separating the client-side rendering from the server-side API processing.
+JanSetu operates on a decoupled architecture, separating the client-side rendering from the server-side API processing.
 
 *   **Frontend Hosting (Vercel):** The React/Next.js client is hosted on Vercel. Vercel provides Edge network caching, ensuring that the HTML/CSS and static assets load instantly for citizens across the region.
 *   **Backend Hosting (Render.com):** The FastAPI Python backend is hosted on Render. Render continuously spins the Python environment, running `uvicorn` to listen for API requests.
@@ -218,7 +218,7 @@ flowchart TD
 - **Safety**: Prevents information leakage from other wards to unauthorized users.
 
 ### J. Proactive Duplicate Detection & Upvote Flow
-To prevent redundant tickets and maintain a clean system, CityShakti uses a synchronous AI check during the submission process.
+To prevent redundant tickets and maintain a clean system, JanSetu uses a synchronous AI check during the submission process.
 
 ```mermaid
 flowchart TD
@@ -288,7 +288,7 @@ The whole API is built on FastAPI (modern Python 3.10+ ASGI framework) aiming fo
     *   **CORS Protection:** Configures `CORSMiddleware` to ensure only the Vercel frontend URL is permitted to make requests (blocking cross-site scripting from attackers).
     *   **Rate Limiting:** Injects `slowapi` to block IP addresses making too many requests per minute.
     *   **Auto-Migration:** Uses an `@app.on_event("startup")` hook to run `subprocess.run(["alembic", "upgrade", "head"])`. This means when Render boots the server, it automatically creates the SQL tables if they don't exist.
-    *   **Sudo Seeder:** Automatically creates the master `sudo@cityshakti.com` account on boot so developers never get locked out.
+    *   **Sudo Seeder:** Automatically creates the master `sudo@JanSetu.com` account on boot so developers never get locked out.
 *   **`BackEnd/requirements.txt`**: Declares Python dependencies (FastAPI, Uvicorn, SQLAlchemy for the DB, Psycopg2-binary for Postgres drivers, Passlib for bcrypt hashing).
 *   **`BackEnd/alembic.ini` & `alembic/`**: Configures the Alembic migration engine. The `alembic/versions` folder contains Python scripts that instruct Postgres exactly how to `CREATE TABLE`, `ADD COLUMN`, or `DROP TABLE` across different deployment versions without losing data.
 

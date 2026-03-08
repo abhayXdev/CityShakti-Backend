@@ -894,7 +894,7 @@ def re_escalate_complaint(
     )
 
     # if current_user.phone:
-    #     send_sms(current_user.phone, f"CityShakti: ALERT - Your ticket '{complaint.title}' has been severely Re-escalated to Priority Level {new_priority}.")
+    #     send_sms(current_user.phone, f"JanSetu: ALERT - Your ticket '{complaint.title}' has been severely Re-escalated to Priority Level {new_priority}.")
     send_email(current_user.email, "Ticket Re-escalated", f"Your rejection for ticket '{complaint.title}' was received. The priority has been penalized and officers have been notified.")
 
     db.commit()

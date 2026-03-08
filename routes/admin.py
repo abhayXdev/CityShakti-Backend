@@ -201,7 +201,7 @@ def approve_officer(
     print(f"\n[{'='*40}]")
     print("📧 MOCK NOTIFICATION SYSTEM")
     print(f"To: {officer.email}")
-    print("Subject: Application Approved - CityShakti Officer")
+    print("Subject: Application Approved - JanSetu Officer")
     print(f"Body: Hello {officer.full_name}, your application to be the {officer.department} Officer for PIN {officer.ward} has been approved by the Sudo User.")
     print("Link: You may now log in to the officer portal.")
     print(f"[{'='*40}]\n")

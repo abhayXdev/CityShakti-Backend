@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from rate_limiter import limiter
 from routes import admin, auth, complaints, dashboard, transparency
 
-app = FastAPI(title="CityShakti PS-CRM")
+app = FastAPI(title="JanSetu PS-CRM")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -31,7 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logger = logging.getLogger("cityshakti")
+logger = logging.getLogger("JanSetu")
 logging.basicConfig(level=logging.INFO)
 
 
@@ -69,7 +69,7 @@ def on_startup():
     # Seed the Sudo Account
     try:
         db = SessionLocal()
-        sudo_email = "sudo@cityshakti.com"
+        sudo_email = "sudo@JanSetu.com"
         existing_sudo = db.query(User).filter(User.email == sudo_email).first()
         if not existing_sudo:
             sudo_user = User(
@@ -81,7 +81,7 @@ def on_startup():
             )
             db.add(sudo_user)
             db.commit()
-            logger.info("Successfully created pre-declared Sudo account: sudo@cityshakti.com")
+            logger.info("Successfully created pre-declared Sudo account: sudo@JanSetu.com")
     except Exception as e:
         logger.error(f"Failed to create Sudo user: {e}")
     finally:

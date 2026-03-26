@@ -925,6 +925,8 @@ async def transcribe_audio(
             transcription = client.audio.translations.create(
                 file=(file.filename, audio_file.read()),
                 model="whisper-large-v3",
+                prompt="Translate this complaint about civic issues such as water, roads, electricity, or sanitation into clear English.",
+                temperature=0.0,
             )
             
         os.remove(temp_path)

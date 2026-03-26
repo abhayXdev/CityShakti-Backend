@@ -18,6 +18,7 @@ The platform offloads specific complex workloads to specialized third-party APIs
     *   **Intelligent PIN Snapping:** Accuracy optimization implemented in `frontend/lib/pincode.ts`. If multiple PIN codes are detected (near boundaries), the system cross-references them with the user's registered home ward and automatically "snaps" to it if found.
     *   **Vector Tiles:** Provides the interactive map layer for the dashboard via MapLibre GL JS, authenticated via dynamic `transformRequest` headers and the `NEXT_PUBLIC_OLA_MAPS_API_KEY`.
 *   **Brevo (formerly Sendinblue) SMTP API:** Used for Identity Verification. When a user registers or logs in, the backend securely communicates with `api.brevo.com` to dispatch 6-digit One-Time Passcodes (OTPs). 
+*   **Groq API (Whisper-Large-v3):** Serves as our lightning-fast native speech-to-text engine. It takes audio blobs (captured from the frontend microphone) containing regional Indian languages and instantly translates and dictates them as English text, bypassing native language barriers for accessibility.
 *   **ImgBB API:** Used for Evidence Storage. The frontend intercepts image uploads, sends the raw file to `api.imgbb.com`, receives a public `photo_url`, and only saves that short URL string to our database.
 *   **HTML5 Geolocation API:** The frontend relies on native browser GPS sensors during complaint submission.
 *   **Canvas-Confetti:** Used for interactive user feedback (celebratory confetti) upon successful complaint submission and community upvotes.
@@ -279,6 +280,7 @@ All core components (such as `login-page.tsx`, `register-page.tsx`, `dashboard-o
 *   **`frontend/components/community-view.tsx`**: A public feed that fetches all complaints in the current PIN code. It implements an auto-open listener for deep-linked complaints from the Map.
 *   **`frontend/components/dashboard-overview.tsx`**: The primary operational dashboard.
     *   **Logic:** Dynamically renders UI based on `user.role` (Citizen/Officer/Sudo).
+    *   **Dictation Support:** Integrates the `<MicButton />` component (`mic-button.tsx`) next to the Detailed Description field, allowing citizens to speak their complaints in regional languages and auto-filling the English translation.
     *   **Redundancy Fix**: Implemented `isActionPending` state logic. When an officer clicks "Mark Resolved", all action buttons enter a `disabled` state and text changes to "Processing..." until the API response returns and the local state is synchronized.
     *   **Administrator Controls**: Features a "Dept/Ward Match" security check. An officer can *view* any public report, but can only *modify* (Update/Resolve) a report if their `user.department` matches the complaint's department AND their `user.ward` matches the incident location.
     *   **Visual Feedback**: Integrated `uploadingUpdateImage` spinner and custom `Badge` colors for "Escalated" status (pulsing red).
@@ -326,6 +328,7 @@ The whole API is built on FastAPI (modern Python 3.10+ ASGI framework) aiming fo
 *   **`BackEnd/routes/auth.py`**: Handles all Account routes. Contains `/register` (checks if user exists, creates them), `/login` (checks password, issues token), and `/send-email-otp` (fires Brevo code).
 *   **`BackEnd/routes/complaints.py`**: The workhorse API.
     *   `POST /`: Takes a citizen's complaint form payload, triggers the AI in `services/ai` to assign a deadline, attaches the citizen's ID via the JWT dependency, and writes it to DB.
+    *   `POST /transcribe`: Receives `.webm` audio blobs directly from the browser's MediaRecorder, passes them to the Groq Whisper-large-v3 model with strict temperature constraints, and streams back the English translated text.
     *   `GET /`: Fetches lists of complaints. Dynamically filters the SQL query depending on if the requester is an Officer (only gets their PIN code) or Citizen (gets their own list). Include `.limit()` and `.offset()` for frontend pagination.
     *   `PUT /{id}/status`: Called by Officers to change the status (e.g., "Pending" -> "Resolved"). Logs an entry to `ComplaintActivity`.
     *   **Unified Multi-Citizen Notifications**: When an officer resolves or rejects a primary complaint, the router in `update_compl_status` queries all tickets merged into that ID. It automatically dispatches update notifications to **every reporter** involved, ensuring total transparency and cross-departmental accountability.

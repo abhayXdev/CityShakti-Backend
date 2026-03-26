@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import (APIRouter, BackgroundTasks, Depends, HTTPException, Query,
-                     Request, status)
+                     Request, status, UploadFile, File)
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,8 @@ from schemas import (APIMessage, ComplaintAdminUpdate, ComplaintAssign,
                      ComplaintMergeRequest, ComplaintOut,
                      ComplaintProgressUpdateCreate, ComplaintProgressUpdateOut,
                      ComplaintStatusUpdate)
+import os
+from groq import Groq
 from services import ai
 from services.ai import (CATEGORY_TO_DEPARTMENT, calculate_impact_score,
                          cosine_similarity, predict_category, predict_priority,
@@ -906,3 +908,26 @@ def re_escalate_complaint(
     db.commit()
     db.refresh(complaint)
     return complaint
+
+
+@router.post("/transcribe", response_model=dict)
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_role("citizen", "officer", "sudo"))
+):
+    try:
+        temp_path = f"/tmp/{file.filename}"
+        with open(temp_path, "wb") as buffer:
+            buffer.write(await file.read())
+            
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        with open(temp_path, "rb") as audio_file:
+            transcription = client.audio.translations.create(
+                file=(file.filename, audio_file.read()),
+                model="whisper-large-v3",
+            )
+            
+        os.remove(temp_path)
+        return {"text": transcription.text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

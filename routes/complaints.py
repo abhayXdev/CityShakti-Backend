@@ -930,4 +930,6 @@ async def transcribe_audio(
         os.remove(temp_path)
         return {"text": transcription.text}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Transcription Error: {str(e)}")

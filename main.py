@@ -90,6 +90,10 @@ def on_startup():
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(_: Request, exc: SQLAlchemyError):
+    """
+    Catches any catastrophic database failures safely.
+    Prevents database structure leaks to the frontend by wrapping exceptions in a generic 500 error.
+    """
     logger.exception("Database error: %s", exc)
     return JSONResponse(
         status_code=500,
@@ -116,6 +120,11 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Global catch-all exception handler.
+    Prevents the server from crashing on unhandled errors and ensures
+    a standard JSON error payload is always returned to the frontend.
+    """
     logger.error(f"Unhandled Exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,

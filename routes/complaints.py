@@ -239,6 +239,12 @@ def create_complaint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("citizen", "officer", "sudo")),
 ):
+    """
+    Endpoint for creating a new complaint.
+    It synchronously validates the payload, checks for duplicates using AI, 
+    and then calculates ML-driven SLA deadlines. 
+    It delegates final heavy lifting (auto-assignment, email notifications) to background tasks.
+    """
     # Synchronous Duplicate Check (Proactive Prevention)
     # Check for existing complaints in the same ward with high similarity
     query_ward = (payload.ward or "").replace(' ', '').lower()

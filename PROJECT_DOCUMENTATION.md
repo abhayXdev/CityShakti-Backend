@@ -247,6 +247,7 @@ flowchart TD
 
 ## 4. Frontend Codebase: File-by-File Explanation
 The entire user interface is built using Next.js 13+ (App Router), React, Tailwind CSS, and Shadcn UI components.
+All core components (such as `login-page.tsx`, `register-page.tsx`, `dashboard-overview.tsx`, and `analytics-section.tsx`) and complex logic handlers are thoroughly documented using professional JSDoc formatting. This ensures long-term maintainability and easy onboarding for new developers without cluttering the UI code.
 
 ### Core Configuration
 *   **`frontend/package.json`**: Lists all npm dependencies (`maplibre-gl` for maps, `lucide-react` for icons, `date-fns` for time, `recharts` for charts).

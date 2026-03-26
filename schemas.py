@@ -1,3 +1,7 @@
+"""
+Pydantic Schema definitions for API request/response validation.
+Ensures strong typing, bounds checking, and automatic OpenAPI documentation.
+"""
 from datetime import datetime
 from typing import List, Literal, Optional
 
@@ -49,6 +53,10 @@ class UserOut(BaseModel):
 
 
 class ComplaintCreate(BaseModel):
+    """
+    Validation schema for incoming citizen complaints.
+    Enforces strict lengths and PIN code sanity checks.
+    """
     title: str = Field(min_length=3, max_length=200)
     description: str = Field(min_length=10, max_length=5000)
     ward: str = Field(pattern=r"^\d{6}$", description="6-digit Indian PIN code")

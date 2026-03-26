@@ -1,3 +1,7 @@
+"""
+SQLAlchemy ORM Models.
+Defines the structure of the database tables, relationships, and SLA tracking features.
+"""
 from sqlalchemy import (Boolean, Column, DateTime, Float, ForeignKey, Integer,
                         String)
 from sqlalchemy.orm import relationship
@@ -7,6 +11,10 @@ from database import Base
 
 
 class User(Base):
+    """
+    Core User model representing Citizens, Officers, and Sudo Administrators.
+    Stores authentication data, role-based access, and geographic assignment.
+    """
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -29,6 +37,10 @@ class User(Base):
 
 
 class Complaint(Base):
+    """
+    Central operational entity of JanSetu. 
+    Tracks the lifecycle, geolocation, ML priority, and SLA deadlines of civic issues.
+    """
     __tablename__ = "complaints"
 
     id = Column(Integer, primary_key=True, index=True)

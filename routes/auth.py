@@ -1,3 +1,7 @@
+"""
+Authentication & Authorization API Routes.
+Manages user registration, JWT lifecycle, role verification, and secure OTP flows.
+"""
 import random
 import string
 from datetime import datetime, timedelta, timezone

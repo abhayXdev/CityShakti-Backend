@@ -1,3 +1,8 @@
+"""
+Database configuration and connection management.
+Sets up the SQLAlchemy engine, session maker, and standard dependency
+for yielding database sessions to HTTP routes.
+"""
 import os
 
 from dotenv import load_dotenv

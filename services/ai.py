@@ -1,3 +1,8 @@
+"""
+Artificial Intelligence & Machine Learning Service.
+Provides heuristic text analysis, cosine similarity mathematics, and dynamic SLA deadline prediction.
+This module is isolated to ensure data-processing workload doesn't intermingle with routing logic.
+"""
 import math
 import re
 from collections import Counter

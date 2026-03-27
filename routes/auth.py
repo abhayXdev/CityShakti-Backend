@@ -37,6 +37,13 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
         )
 
+    # Strictly block external creation of the Sudo user
+    if payload.role == "sudo":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Sudo accounts cannot be registered. They are statically securely seeded."
+        )
+
     # Enforce Pincode uniqueness for Officers (1 per department per pincode)
     if payload.role == "officer":
         if not payload.ward:
@@ -255,6 +262,11 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Sessio
     Always returns success (to prevent user enumeration attacks).
     """
     user = db.query(User).filter(func.lower(User.email) == payload.email.lower()).first()
+    
+    # Block sudo user from utilizing forgot password (silent return to prevent enumeration)
+    if user and user.role == "sudo":
+        return {"message": "If that email is registered, an OTP has been sent."}
+        
     if user and user.is_active:
         # Invalidate any previous OTPs for this email
         db.query(EmailOTP).filter(
@@ -298,6 +310,12 @@ def reset_password(request: Request, payload: ResetPasswordRequest, db: Session 
     user = db.query(User).filter(func.lower(User.email) == payload.email.lower()).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+        
+    if user.role == "sudo":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Sudo password cannot be reset dynamically."
+        )
 
     user.password_hash = hash_password(payload.new_password)
     record.is_used = True

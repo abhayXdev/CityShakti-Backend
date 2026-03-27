@@ -195,6 +195,26 @@ def approve_officer(
         raise HTTPException(status_code=400, detail="Officer is already approved")
         
     officer.is_active = True
+    
+    # Auto-reassign active complaints in this area to the new officer
+    complaints_to_reassign = db.query(Complaint).filter(
+        Complaint.ward == officer.ward,
+        Complaint.assigned_department == officer.department,
+        Complaint.status.in_(["Submitted", "Pending", "Assigned", "In Progress"])
+    ).all()
+
+    for comp in complaints_to_reassign:
+        old_assignee = comp.assigned_to
+        comp.assigned_to = officer.full_name
+        add_activity(
+            db,
+            complaint_id=comp.id,
+            action="System Reassignment",
+            details=f"Automatically transitioned from {old_assignee or 'Unassigned'} to new officer {officer.full_name}",
+            actor="System",
+            actor_id=None
+        )
+
     db.commit()
     
     # Simulate sending an approval email

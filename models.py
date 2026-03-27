@@ -48,7 +48,9 @@ class Complaint(Base):
     description = Column(String)
     ward = Column(String, index=True)
     incident_ward = Column(String, index=True, nullable=True)
-    citizen_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    citizen_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     merged_into_id = Column(
         Integer, ForeignKey("complaints.id"), nullable=True, index=True
     )
@@ -106,7 +108,9 @@ class ComplaintActivity(Base):
     previous_value = Column(String, nullable=True)
     new_value = Column(String, nullable=True)
     actor = Column(String, nullable=True)
-    actor_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    actor_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     complaint = relationship("Complaint", back_populates="activities")
@@ -123,7 +127,9 @@ class ComplaintUpdate(Base):
     phase = Column(String, nullable=False, default="after")
     note = Column(String, nullable=True)
     photo_url = Column(String, nullable=True)
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     complaint = relationship("Complaint", back_populates="updates")
@@ -136,7 +142,9 @@ class ComplaintUpvote(Base):
     complaint_id = Column(
         Integer, ForeignKey("complaints.id"), index=True, nullable=False
     )
-    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

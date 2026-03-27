@@ -1,7 +1,7 @@
 """add_ondelete_rules
 
 Revision ID: g2bcd1234567
-Revises: f1abc1234567
+Revises: 66e6d841e84a
 Create Date: 2026-03-28 00:15:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'g2bcd1234567'
-down_revision = 'f1abc1234567'
+down_revision = '66e6d841e84a'
 branch_labels = None
 depends_on = None
 

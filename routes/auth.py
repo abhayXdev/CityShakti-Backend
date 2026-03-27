@@ -7,6 +7,7 @@ import string
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -30,7 +31,7 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
     For Officers, it enforces PIN code logic and restricts creation to 
     1 administrative officer per department per ward.
     """
-    existing = db.query(User).filter(User.email == payload.email.lower()).first()
+    existing = db.query(User).filter(func.lower(User.email) == payload.email.lower()).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
@@ -83,7 +84,7 @@ def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
     Returns short-lived Access Tokens and long-lived Refresh Tokens.
     Blocks login if the account is suspended or awaiting Super Admin approval.
     """
-    user = db.query(User).filter(User.email == payload.email.lower()).first()
+    user = db.query(User).filter(func.lower(User.email) == payload.email.lower()).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
@@ -253,7 +254,7 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Sessio
     Works for Citizens AND Officers.
     Always returns success (to prevent user enumeration attacks).
     """
-    user = db.query(User).filter(User.email == payload.email.lower()).first()
+    user = db.query(User).filter(func.lower(User.email) == payload.email.lower()).first()
     if user and user.is_active:
         # Invalidate any previous OTPs for this email
         db.query(EmailOTP).filter(
@@ -294,7 +295,7 @@ def reset_password(request: Request, payload: ResetPasswordRequest, db: Session 
             detail="Invalid or expired OTP.",
         )
 
-    user = db.query(User).filter(User.email == payload.email.lower()).first()
+    user = db.query(User).filter(func.lower(User.email) == payload.email.lower()).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
